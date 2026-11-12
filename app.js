@@ -10,13 +10,6 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 
 import {
-  getStorage,
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL
-} from "https://www.gstatic.com/firebasejs/11.6.0/firebase-storage.js";
-
-import {
   getFirestore,
   collection,
   doc,
@@ -47,7 +40,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
 
 let currentUser = null;
 let isAdmin = false;
@@ -266,7 +258,6 @@ onAuthStateChanged(auth, async (user) => {
         `Login করা হয়েছে: ${user.displayName || user.email}`;
     }
     if ($("#displayNameInput")) $("#displayNameInput").value = user.displayName || "";
-    if ($("#profilePreview")) $("#profilePreview").src = user.photoURL || "https://www.gravatar.com/avatar/?d=mp&s=160";
 
     $("#drawerAdmin")?.classList.toggle("hide", !admin);
     $("#page-admin")?.classList.toggle("admin-enabled", admin);
@@ -629,7 +620,7 @@ $("#paymentForm")?.addEventListener("submit", async (event) => {
   if (!currentUser) {
     showMessage("Deposit করতে আগে Login করো।", true);
     page("account");
-    return;
+      return;
   }
 
   const form = event.currentTarget;
@@ -724,32 +715,7 @@ $("#withdrawForm")?.addEventListener("submit", async (event) => {
   }
 });
 
-// PROFILE PHOTO + DISPLAY NAME
-$("#profilePhoto")?.addEventListener("change", async (event) => {
-  const file = event.target.files?.[0];
-  if (!file || !currentUser) return;
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
-    showMessage("JPG, PNG বা WebP ছবি দিন; সর্বোচ্চ ৫ MB।", true);
-    event.target.value = "";
-    return;
-  }
-  try {
-    const path = `profilePhotos/${currentUser.uid}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-    const imageRef = storageRef(storage, path);
-    await uploadBytes(imageRef, file, { contentType: file.type });
-    const photoURL = await getDownloadURL(imageRef);
-    await updateProfile(currentUser, { photoURL });
-    await setDoc(doc(db, "users", currentUser.uid), {
-      photoURL, updatedAt: serverTimestamp()
-    }, { merge: true });
-    if ($("#profilePreview")) $("#profilePreview").src = photoURL;
-    showMessage("প্রোফাইল ছবি আপডেট হয়েছে।");
-  } catch (error) {
-    console.error("Profile photo error:", error);
-    showMessage("ছবি আপলোড হয়নি। Firebase Storage Rules চেক করো।", true);
-  }
-});
-
+// DISPLAY NAME ONLY (profile photo upload is not included)
 $("#profileForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!currentUser) return;
@@ -1221,32 +1187,16 @@ $("#resultForm")?.addEventListener("submit", async (event) => {
       placement,
       points,
       prizeAmount,
-      prizeStatus: prizeAmount > 0 ? "credited" : "no_prize",
+      prizeStatus: prizeAmount > 0 ? "pending_manual_payout" : "no_prize",
       tournamentId: String(data.tournamentId).trim(),
       createdAt: serverTimestamp(),
       createdBy: auth.currentUser.uid
     });
 
-    if (prizeAmount > 0) {
-      const prizeLedgerRef = doc(db, "paymentRequests", `prize_${resultRef.id}`);
-      batch.set(prizeLedgerRef, {
-        userId: winnerUid,
-        type: "tournament_prize",
-        amount: prizeAmount,
-        method: "Tournament Prize",
-        reference: resultRef.id,
-        resultId: resultRef.id,
-        tournamentId: String(data.tournamentId).trim(),
-        status: "approved",
-        createdAt: serverTimestamp(),
-        createdBy: auth.currentUser.uid
-      });
-    }
-
     await batch.commit();
     form.reset();
     showMessage(prizeAmount > 0
-      ? `Result Publish হয়েছে এবং ৳${money(prizeAmount)} Winner-এর Wallet-এ যোগ হয়েছে।`
+      ? "Result Publish হয়েছে। Winning Prize Admin-কে নিরাপদ পদ্ধতিতে Manual payout করতে হবে।"
       : "Result Publish হয়েছে।");
     await loadLeaderboard();
   } catch (error) {
@@ -1291,3 +1241,4 @@ async function loadLeaderboard() {
 // INITIAL PUBLIC DATA
 loadTournaments();
 loadLeaderboard();
+  
