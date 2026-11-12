@@ -7,12 +7,6 @@
 <meta name="theme-color" content="#090d18">
 <title>ArenaX — Free Fire Tournament</title>
 <link rel="stylesheet" href="styles.css">
-<style>
-.profile-editor{display:flex;align-items:center;gap:16px;margin:14px 0 20px;flex-wrap:wrap}
-.profile-avatar{width:88px;height:88px;border-radius:50%;object-fit:cover;border:2px solid var(--accent,#25d9a0);background:#182235}
-#profilePhoto{max-width:240px}
-#withdrawForm{display:grid;gap:12px}
-</style>
 </head>
 <body>
 
@@ -285,15 +279,6 @@
 
   <div id="loggedInPanel" class="panel form-panel" style="display:none">
     <h3>আমার প্রোফাইল</h3>
-    <div class="profile-editor">
-      <img id="profilePreview" class="profile-avatar" src="https://www.gravatar.com/avatar/?d=mp&s=160" alt="Profile picture">
-      <div>
-        <label>প্রোফাইল ছবি
-          <input id="profilePhoto" type="file" accept="image/jpeg,image/png,image/webp">
-        </label>
-        <small class="hint">JPG, PNG বা WebP • সর্বোচ্চ ৫ MB</small>
-      </div>
-    </div>
     <form id="profileForm" class="form-grid">
       <label>Display Name
         <input id="displayNameInput" name="displayName" maxlength="40" required>
@@ -413,7 +398,8 @@
 </nav>
 
 <footer>© 2026 ArenaX • Independent community tournament platform. Not affiliated with Garena / Free Fire.</footer>
-<script type="module" src="app.js"></script>
+<script type="module" src="./app.js?v=20261113-1"></script>
 </body>
   </html>
-  
+
+      
