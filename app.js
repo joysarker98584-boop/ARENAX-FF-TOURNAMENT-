@@ -883,13 +883,18 @@ async function loadAdminData() {
           }).join("");
 
           return `
-            <tr class="admin-tournament-group">
-              <td colspan="5"><strong>🏆 ${escapeHTML(tournamentTitle)}</strong>
-                <small> — ${players.length} জন Player</small>
-              </td>
-            </tr>
-            ${playerRows}
-          `;
+  <tr class="admin-tournament-group">
+    <td colspan="5">
+      <strong>🏆 ${escapeHTML(tournamentTitle)}</strong>
+      <small> — ${players.length} জন Player</small>
+      <br>
+      <small>Tournament ID:
+        <code>${escapeHTML(tournamentId)}</code>
+      </small>
+    </td>
+  </tr>
+  ${playerRows}
+`;
         }).join("");
 
         $("#adminRegistrations").innerHTML = html;
