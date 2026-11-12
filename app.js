@@ -445,7 +445,7 @@ window.openJoinForm = (tournamentId) => {
   });
 };
 
-// REGISTER TOURNAMENT
+// REGISTER TOURNAMENT — AUTOMATIC JOIN + WALLET ENTRY FEE
 $("#registrationForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
 
@@ -457,7 +457,6 @@ $("#registrationForm")?.addEventListener("submit", async (event) => {
 
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
-
   const tournamentId = String(data.tournamentId || "");
   const playerName = String(data.playerName || "").trim();
   const gameUsername = String(data.gameUsername || "").trim();
@@ -470,46 +469,88 @@ $("#registrationForm")?.addEventListener("submit", async (event) => {
   }
 
   try {
-    const tournamentSnap = await getDoc(doc(db, "tournaments", tournamentId));
+    const tournamentRef = doc(db, "tournaments", tournamentId);
+    const registrationRef = doc(db, "registrations", `${tournamentId}_${currentUser.uid}`);
+    const ledgerQuery = query(
+      collection(db, "paymentRequests"),
+      where("userId", "==", currentUser.uid)
+    );
+    const feeRef = doc(collection(db, "paymentRequests"));
 
-    if (!tournamentSnap.exists()) {
-      throw new Error("Tournament পাওয়া যায়নি।");
-    }
+    await runTransaction(db, async (tx) => {
+      // Read all documents before writing.
+      const [tournamentSnap, existingSnap, ledgerSnap] = await Promise.all([
+        tx.get(tournamentRef),
+        tx.get(registrationRef),
+        tx.get(ledgerQuery)
+      ]);
 
-    const tournament = tournamentSnap.data();
+      if (!tournamentSnap.exists()) throw new Error("Tournament পাওয়া যায়নি।");
+      if (existingSnap.exists()) throw new Error("এই Tournament-এ তুমি আগে Join করেছ।");
 
-    if (Number(tournament.joined || 0) >= Number(tournament.slots || 0)) {
-      throw new Error("এই Tournament-এর Slot পূর্ণ হয়ে গেছে।");
-    }
+      const tournament = tournamentSnap.data();
+      if (String(tournament.status || "published").toLowerCase() !== "published") {
+        throw new Error("এই Tournament এখন Join করা যাচ্ছে না।");
+      }
 
-    const existing = await getDocs(query(
-      collection(db, "registrations"),
-      where("userId", "==", currentUser.uid),
-      where("tournamentId", "==", tournamentId)
-    ));
+      const fee = Number(tournament.entryFee || 0);
+      const joined = Number(tournament.joined || 0);
+      const slots = Number(tournament.slots || 0);
+      if (!Number.isFinite(fee) || fee < 0) throw new Error("Tournament Entry Fee সঠিক নয়।");
+      if (slots > 0 && joined >= slots) throw new Error("এই Tournament-এর Slot পূর্ণ হয়ে গেছে।");
 
-    if (!existing.empty) {
-      throw new Error("এই Tournament-এ তুমি আগে Registration করেছ।");
-    }
+      let balance = 0;
+      ledgerSnap.forEach((item) => {
+        const payment = item.data();
+        if (payment.status === "approved") {
+          if (payment.type === "deposit" || payment.type === "tournament_prize") balance += Number(payment.amount || 0);
+          if (payment.type === "tournament_fee" || payment.type === "withdraw") balance -= Number(payment.amount || 0);
+        } else if (payment.type === "withdraw" && payment.status === "pending") {
+          balance -= Number(payment.amount || 0);
+        }
+      });
 
-    await addDoc(collection(db, "registrations"), {
-      userId: currentUser.uid,
-      tournamentId,
-      tournamentTitle: tournament.title || "",
-      playerName,
-      gameUsername,
-      uid,
-      teamName,
-      status: "pending",
-      createdAt: serverTimestamp()
+      if (balance < fee) {
+        throw new Error(`Wallet Balance পর্যাপ্ত নয়। প্রয়োজন ৳${money(fee)}, আছে ৳${money(balance)}।`);
+      }
+
+      tx.set(registrationRef, {
+        userId: currentUser.uid,
+        tournamentId,
+        tournamentTitle: tournament.title || "",
+        playerName,
+        gameUsername,
+        uid,
+        teamName,
+        status: "approved",
+        createdAt: serverTimestamp(),
+        approvedAt: serverTimestamp(),
+        autoJoined: true
+      });
+
+      tx.update(tournamentRef, { joined: joined + 1 });
+
+      if (fee > 0) {
+        tx.set(feeRef, {
+          userId: currentUser.uid,
+          type: "tournament_fee",
+          amount: fee,
+          status: "approved",
+          tournamentId,
+          method: "Wallet",
+          reference: "Automatic Tournament Entry Fee",
+          createdAt: serverTimestamp()
+        });
+      }
     });
 
     form.reset();
-    showMessage("Registration পাঠানো হয়েছে। Admin Approval-এর অপেক্ষা করো।");
+    showMessage("সফলভাবে Tournament Join হয়েছে। Entry Fee Wallet থেকে কেটে নেওয়া হয়েছে।");
     await loadPlayerData();
+    await loadTournaments();
   } catch (error) {
-    console.error("Registration error:", error);
-    showMessage(error.message, true);
+    console.error("Automatic tournament join error:", error);
+    showMessage(error.message || "Tournament Join করা যায়নি।", true);
   }
 });
 
@@ -640,7 +681,7 @@ $("#paymentForm")?.addEventListener("submit", async (event) => {
 
   try {
     await addDoc(collection(db, "paymentRequests"), {
-                                                         userId: currentUser.uid,
+      userId: currentUser.uid,
       type: "deposit",
       amount,
       method: String(data.method || "bKash"),
@@ -1178,7 +1219,8 @@ document.addEventListener("submit", async (event) => {
   }
 });
 
-// PUBLISH RESULT
+// PUBLISH RESULT + CREDIT WINNING PRIZE TO THE PLAYER WALLET
+// The admin enters the player's Firebase Auth UID (stored as registrations.userId).
 document.addEventListener("submit", async (event) => {
   if (event.target.id !== "resultForm") return;
   event.preventDefault();
@@ -1190,58 +1232,76 @@ document.addEventListener("submit", async (event) => {
 
   const form = event.target;
   const data = Object.fromEntries(new FormData(form));
-
   const placement = Number(data.placement);
   const points = Number(data.points);
   const prizeAmount = Number(data.prizeAmount || 0);
-  const winnerUid = String(data.winnerUid || "").trim();
+  // New form field is userId. Old winnerUid is accepted temporarily for compatibility.
+  const winnerUserId = String(data.userId || data.winnerUserId || data.winnerUid || "").trim();
+  const tournamentId = String(data.tournamentId || "").trim();
+  const playerName = String(data.player || "").trim();
 
   if (
-    !String(data.player || "").trim() ||
-    !String(data.tournamentId || "").trim() ||
+    !playerName || !tournamentId ||
     !Number.isInteger(placement) || placement < 1 ||
     !Number.isFinite(points) || points < 0 ||
     !Number.isFinite(prizeAmount) || prizeAmount < 0 || prizeAmount > 1000000 ||
-    (prizeAmount > 0 && !winnerUid)
+    (prizeAmount > 0 && !winnerUserId)
   ) {
-    showMessage("Result-এর তথ্য সঠিকভাবে পূরণ করো। Prize দিলে Winner-এর Firebase UID দিতে হবে।", true);
+    showMessage("Result-এর তথ্য সঠিকভাবে পূরণ করো। Prize দিলে Player-এর userId দিতে হবে।", true);
     return;
   }
 
   try {
-    // Validate that the prize recipient is an existing player account.
     if (prizeAmount > 0) {
-      const winnerSnap = await getDoc(doc(db, "users", winnerUid));
+      const winnerSnap = await getDoc(doc(db, "users", winnerUserId));
       if (!winnerSnap.exists() || winnerSnap.data().role !== "player") {
-        throw new Error("Winner UID সঠিক নয় অথবা Player account পাওয়া যায়নি।");
+        throw new Error("Player userId সঠিক নয় অথবা Player account পাওয়া যায়নি।");
       }
     }
 
-    // Result and wallet credit are written atomically. Stable ledger ID
-    // prevents this same result from crediting the prize more than once.
+    // One atomic batch: result + approved wallet-ledger credit.
+    // The ledger document uses the result ID, preventing duplicate credit for this result.
     const resultRef = doc(collection(db, "results"));
     const batch = writeBatch(db);
     batch.set(resultRef, {
-      player: String(data.player).trim(),
-      winnerUid: winnerUid || null,
+      player: playerName,
+      userId: winnerUserId || null,
       placement,
       points,
       prizeAmount,
-      prizeStatus: prizeAmount > 0 ? "pending_manual_payout" : "no_prize",
-      tournamentId: String(data.tournamentId).trim(),
+      prizeStatus: prizeAmount > 0 ? "credited" : "no_prize",
+      tournamentId,
       createdAt: serverTimestamp(),
       createdBy: auth.currentUser.uid
     });
 
+    if (prizeAmount > 0) {
+      const prizeLedgerRef = doc(db, "paymentRequests", `prize_${resultRef.id}`);
+      batch.set(prizeLedgerRef, {
+        userId: winnerUserId,
+        type: "tournament_prize",
+        amount: prizeAmount,
+        status: "approved",
+        method: "Tournament Winning Prize",
+        reference: `Result ${resultRef.id}`,
+        tournamentId,
+        resultId: resultRef.id,
+        createdAt: serverTimestamp(),
+        reviewedAt: serverTimestamp(),
+        reviewedBy: auth.currentUser.uid
+      });
+    }
+
     await batch.commit();
     form.reset();
     showMessage(prizeAmount > 0
-      ? "Result Publish হয়েছে। Winning Prize Admin-কে নিরাপদ পদ্ধতিতে Manual payout করতে হবে।"
+      ? `Result Publish হয়েছে এবং ৳${money(prizeAmount)} Winning Prize Player Wallet-এ যোগ হয়েছে।`
       : "Result Publish হয়েছে।");
     await loadLeaderboard();
+    if (currentUser) await loadPlayerData();
   } catch (error) {
-    console.error("Publish result error:", error);
-    showMessage(error.message, true);
+    console.error("Publish result / prize credit error:", error);
+    showMessage(error.message || "Result Publish করা যায়নি।", true);
   }
 });
 
@@ -1263,9 +1323,10 @@ async function loadLeaderboard() {
             <td>${escapeHTML(r.player || "")}</td>
             <td>${Number(r.placement || 0)}</td>
             <td>${Number(r.points || 0)}</td>
+            <td>৳${money(r.prizeAmount || 0)}</td>
           </tr>
         `;
-      }).join("") || '<tr><td colspan="5">এখনো ফলাফল প্রকাশ হয়নি।</td></tr>';
+      }).join("") || '<tr><td colspan="5">এখনো ফলাফল পকাশ হয়নি।</td></tr>';
     }
   } catch (error) {
     console.error("Leaderboard error:", error);
@@ -1280,3 +1341,4 @@ async function loadLeaderboard() {
 // INITIAL PUBLIC DATA
 loadTournaments();
 loadLeaderboard();
+                       
