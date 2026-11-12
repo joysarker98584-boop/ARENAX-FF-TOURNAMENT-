@@ -448,7 +448,7 @@ window.openJoinForm = (tournamentId) => {
 // REGISTER TOURNAMENT — AUTOMATIC JOIN + WALLET ENTRY FEE
 $("#registrationForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
-
+  
   if (!currentUser) {
     showMessage("আগে Login করো।", true);
     page("account");
@@ -898,7 +898,7 @@ async function loadAdminData() {
 
   } catch (error) {
     console.error("Admin data error:", error);
-    showMessage("Admin Data লোড হয়নি।", true);
+      showMessage("Admin Data লোড হয়নি।", true);
   }
 }
 
@@ -1253,9 +1253,15 @@ document.addEventListener("submit", async (event) => {
 
   try {
     if (prizeAmount > 0) {
-      const winnerSnap = await getDoc(doc(db, "users", winnerUserId));
-      if (!winnerSnap.exists() || winnerSnap.data().role !== "player") {
-        throw new Error("Player userId সঠিক নয় অথবা Player account পাওয়া যায়নি।");
+      // Validate userId against this tournament's registration, not users/{userId}.
+      const winnerRegistrationSnap = await getDocs(query(
+        collection(db, "registrations"),
+        where("userId", "==", winnerUserId),
+        where("tournamentId", "==", tournamentId)
+      ));
+
+      if (winnerRegistrationSnap.empty) {
+        throw new Error("এই userId দিয়ে নির্বাচিত Tournament-এ কোনো Registration পাওয়া যায়নি। Registration তালিকা থেকে সঠিক userId ও Tournament ID ব্যবহার করো।");
       }
     }
 
@@ -1326,7 +1332,7 @@ async function loadLeaderboard() {
             <td>৳${money(r.prizeAmount || 0)}</td>
           </tr>
         `;
-      }).join("") || '<tr><td colspan="5">এখনো ফলাফল পকাশ হয়নি।</td></tr>';
+      }).join("") || '<tr><td colspan="5">এখনো ফলাফল প্রকাশ হয়নি।</td></tr>';
     }
   } catch (error) {
     console.error("Leaderboard error:", error);
@@ -1341,4 +1347,5 @@ async function loadLeaderboard() {
 // INITIAL PUBLIC DATA
 loadTournaments();
 loadLeaderboard();
-                       
+
+      
