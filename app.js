@@ -622,7 +622,7 @@ $("#paymentForm")?.addEventListener("submit", async (event) => {
     page("account");
     return;
     }
-
+    
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
   const amount = Number(data.amount);
@@ -1043,7 +1043,7 @@ document.addEventListener("submit", async (event) => {
     return;
   }
 
-  const form = event.currentTarget;
+  const form = event.target;
   const data = Object.fromEntries(new FormData(form));
   const tournamentId = String(data.tournamentId || "").trim();
   const roomId = String(data.roomId || "").trim();
@@ -1097,7 +1097,7 @@ document.addEventListener("submit", async (event) => {
     return;
   }
 
-  const form = event.currentTarget;
+  const form = event.target;
   const data = Object.fromEntries(new FormData(form));
 
   const entryFee = Number(data.entryFee);
@@ -1151,7 +1151,7 @@ document.addEventListener("submit", async (event) => {
     return;
   }
 
-  const form = event.currentTarget;
+  const form = event.target;
   const data = Object.fromEntries(new FormData(form));
 
   const placement = Number(data.placement);
@@ -1244,4 +1244,5 @@ async function loadLeaderboard() {
 // INITIAL PUBLIC DATA
 loadTournaments();
 loadLeaderboard();
-                                 
+
+      
