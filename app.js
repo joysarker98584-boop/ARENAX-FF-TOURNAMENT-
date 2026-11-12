@@ -620,8 +620,8 @@ $("#paymentForm")?.addEventListener("submit", async (event) => {
   if (!currentUser) {
     showMessage("Deposit করতে আগে Login করো।", true);
     page("account");
-      return;
-  }
+    return;
+    }
 
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
@@ -1034,29 +1034,23 @@ window.rejectRegistration = async (registrationId) => {
   }
 };
 
-// ADMIN: SEND ROOM DETAILS
+// ADMIN: SEND ROOM DETAILS TO APPROVED PLAYERS ONLY
 document.addEventListener("submit", async (event) => {
-
   if (event.target.id !== "roomDetailsForm") return;
-
   event.preventDefault();
-
-  alert("ROOM HANDLER চালু হয়েছে");
-
   if (!(await checkAdmin())) {
     showMessage("শুধু Admin Room ID ও Password দিতে পারবে।", true);
     return;
   }
 
-  const form = event.target;
+  const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
-
   const tournamentId = String(data.tournamentId || "").trim();
   const roomId = String(data.roomId || "").trim();
   const roomPassword = String(data.roomPassword || "").trim();
 
   if (!tournamentId || !roomId || !roomPassword) {
-    showMessage("সব তথ্য পূরণ করো।", true);
+    showMessage("Tournament, Room ID ও Password পূরণ করো।", true);
     return;
   }
 
@@ -1068,12 +1062,12 @@ document.addEventListener("submit", async (event) => {
     ));
 
     if (approvedSnap.empty) {
-      showMessage("কোনো Approved Player পাওয়া যায়নি।", true);
+      showMessage("এই Tournament-এ এখনো Approved Player নেই।", true);
       return;
     }
 
+    // Max tournament slots are 500, within Firestore's 500-write batch limit.
     const batch = writeBatch(db);
-
     approvedSnap.docs.forEach((registration) => {
       batch.update(registration.ref, {
         roomId,
@@ -1081,25 +1075,21 @@ document.addEventListener("submit", async (event) => {
         roomDetailsUpdatedAt: serverTimestamp()
       });
     });
-
     await batch.commit();
 
     form.reset();
-
-    showMessage(
-      `${approvedSnap.size} জন Approved Player-কে Room Details পাঠানো হয়েছে।`
-    );
-
+    showMessage(`${approvedSnap.size} জন Approved Player-কে Room Details পাঠানো হয়েছে।`);
     await loadAdminData();
     await loadPlayerData();
-
   } catch (error) {
-    console.error(error);
+    console.error("Room details update error:", error);
     showMessage(error.message || "Room Details পাঠানো যায়নি।", true);
   }
 });
+
 // CREATE TOURNAMENT
-$("#createTournament")?.addEventListener("submit", async (event) => {
+document.addEventListener("submit", async (event) => {
+  if (event.target.id !== "createTournament") return;
   event.preventDefault();
 
   if (!(await checkAdmin())) {
@@ -1152,7 +1142,8 @@ $("#createTournament")?.addEventListener("submit", async (event) => {
 });
 
 // PUBLISH RESULT
-$("#resultForm")?.addEventListener("submit", async (event) => {
+document.addEventListener("submit", async (event) => {
+  if (event.target.id !== "resultForm") return;
   event.preventDefault();
 
   if (!(await checkAdmin())) {
@@ -1253,6 +1244,4 @@ async function loadLeaderboard() {
 // INITIAL PUBLIC DATA
 loadTournaments();
 loadLeaderboard();
-document.addEventListener("submit", function(event) {
-  alert("FORM SUBMIT কাজ করছে: " + event.target.id);
-}, true);
+                                 
