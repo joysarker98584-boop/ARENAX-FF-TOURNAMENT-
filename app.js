@@ -1237,14 +1237,14 @@ async function loadLeaderboard() {
     }
   }
 }
+
+// INITIAL PUBLIC DATA
+loadTournaments();
+loadLeaderboard();
 document.addEventListener("click", function(event) {
   const button = event.target.closest("button");
 
   if (button) {
     alert("Button Click কাজ করছে: " + button.textContent);
   }
-});
-// INITIAL PUBLIC DATA
-loadTournaments();
-loadLeaderboard();
-  
+});  
