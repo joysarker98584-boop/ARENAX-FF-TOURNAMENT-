@@ -1034,23 +1034,29 @@ window.rejectRegistration = async (registrationId) => {
   }
 };
 
-// ADMIN: SEND ROOM DETAILS TO APPROVED PLAYERS ONLY
-$("#roomDetailsForm")?.addEventListener("submit", async (event) => {
-  alert("ROOM HANDLER চালু হয়েছে");
+// ADMIN: SEND ROOM DETAILS
+document.addEventListener("submit", async (event) => {
+
+  if (event.target.id !== "roomDetailsForm") return;
+
   event.preventDefault();
+
+  alert("ROOM HANDLER চালু হয়েছে");
+
   if (!(await checkAdmin())) {
     showMessage("শুধু Admin Room ID ও Password দিতে পারবে।", true);
     return;
   }
 
-  const form = event.currentTarget;
+  const form = event.target;
   const data = Object.fromEntries(new FormData(form));
+
   const tournamentId = String(data.tournamentId || "").trim();
   const roomId = String(data.roomId || "").trim();
   const roomPassword = String(data.roomPassword || "").trim();
 
   if (!tournamentId || !roomId || !roomPassword) {
-    showMessage("Tournament, Room ID ও Password পূরণ করো।", true);
+    showMessage("সব তথ্য পূরণ করো।", true);
     return;
   }
 
@@ -1062,12 +1068,12 @@ $("#roomDetailsForm")?.addEventListener("submit", async (event) => {
     ));
 
     if (approvedSnap.empty) {
-      showMessage("এই Tournament-এ এখনো Approved Player নেই।", true);
+      showMessage("কোনো Approved Player পাওয়া যায়নি।", true);
       return;
     }
 
-    // Max tournament slots are 500, within Firestore's 500-write batch limit.
     const batch = writeBatch(db);
+
     approvedSnap.docs.forEach((registration) => {
       batch.update(registration.ref, {
         roomId,
@@ -1075,18 +1081,23 @@ $("#roomDetailsForm")?.addEventListener("submit", async (event) => {
         roomDetailsUpdatedAt: serverTimestamp()
       });
     });
+
     await batch.commit();
 
     form.reset();
-    showMessage(`${approvedSnap.size} জন Approved Player-কে Room Details পাঠানো হয়েছে।`);
+
+    showMessage(
+      `${approvedSnap.size} জন Approved Player-কে Room Details পাঠানো হয়েছে।`
+    );
+
     await loadAdminData();
     await loadPlayerData();
+
   } catch (error) {
-    console.error("Room details update error:", error);
+    console.error(error);
     showMessage(error.message || "Room Details পাঠানো যায়নি।", true);
   }
 });
-
 // CREATE TOURNAMENT
 $("#createTournament")?.addEventListener("submit", async (event) => {
   event.preventDefault();
