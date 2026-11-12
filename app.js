@@ -1036,6 +1036,7 @@ window.rejectRegistration = async (registrationId) => {
 
 // ADMIN: SEND ROOM DETAILS TO APPROVED PLAYERS ONLY
 $("#roomDetailsForm")?.addEventListener("submit", async (event) => {
+  alert("ROOM HANDLER চালু হয়েছে");
   event.preventDefault();
   if (!(await checkAdmin())) {
     showMessage("শুধু Admin Room ID ও Password দিতে পারবে।", true);
