@@ -622,7 +622,7 @@ $("#paymentForm")?.addEventListener("submit", async (event) => {
     page("account");
     return;
     }
-    
+
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
   const amount = Number(data.amount);
@@ -640,7 +640,7 @@ $("#paymentForm")?.addEventListener("submit", async (event) => {
 
   try {
     await addDoc(collection(db, "paymentRequests"), {
-      userId: currentUser.uid,
+                                                         userId: currentUser.uid,
       type: "deposit",
       amount,
       method: String(data.method || "bKash"),
@@ -793,31 +793,68 @@ async function loadAdminData() {
           }).join("");
     }
 
-    const registrationSnap = await getDocs(query(
-      collection(db, "registrations"),
-      where("status", "==", "pending")
-    ));
+    // Show ALL registrations (pending + approved + rejected), grouped by tournament.
+    const registrationSnap = await getDocs(collection(db, "registrations"));
 
     if ($("#adminRegistrations")) {
-      $("#adminRegistrations").innerHTML = registrationSnap.empty
-        ? '<tr><td colspan="5">কোনো Pending Registration নেই।</td></tr>'
-        : registrationSnap.docs.map((item) => {
-            const r = item.data();
+      if (registrationSnap.empty) {
+        $("#adminRegistrations").innerHTML =
+          '<tr><td colspan="5">এখনো কোনো Tournament-এ কেউ Join করেনি।</td></tr>';
+      } else {
+        const registrations = registrationSnap.docs.map((item) => ({
+          id: item.id,
+          data: item.data()
+        }));
+
+        // Group by tournamentId so every player's details appear under the correct tournament.
+        const groups = new Map();
+        registrations.forEach(({ id, data }) => {
+          const tournamentId = String(data.tournamentId || "unknown");
+          if (!groups.has(tournamentId)) groups.set(tournamentId, []);
+          groups.get(tournamentId).push({ id, data });
+        });
+
+        const tournamentNames = new Map(
+          tournamentCache.map(({ id, data }) => [id, data.title || id])
+        );
+
+        const html = [...groups.entries()].map(([tournamentId, players]) => {
+          const tournamentTitle = tournamentNames.get(tournamentId)
+            || players[0]?.data.tournamentTitle
+            || tournamentId;
+
+          const playerRows = players.map(({ id, data: r }) => {
+            const status = String(r.status || "pending");
+            const action = status === "pending"
+              ? `<button class="small-btn approve" type="button" onclick="window.approveRegistration('${id}')">Approve</button>
+                 <button class="small-btn reject" type="button" onclick="window.rejectRegistration('${id}')">Reject</button>`
+              : `<span class="status-tag ${escapeHTML(status)}">${escapeHTML(status)}</span>`;
 
             return `
               <tr>
-                <td>${escapeHTML(r.playerName)}</td>
+                <td>${escapeHTML(r.playerName || "-")}</td>
                 <td>${escapeHTML(r.gameUsername || "-")}</td>
-                <td>${escapeHTML(r.uid)}</td>
-                <td>${escapeHTML(r.tournamentTitle || r.tournamentId)}</td>
-                <td>
-                  <button class="small-btn approve" onclick="window.approveRegistration('${item.id}')">Approve</button>
-                  <button class="small-btn reject" onclick="window.rejectRegistration('${item.id}')">Reject</button>
-                </td>
+                <td>${escapeHTML(r.uid || "-")}</td>
+                <td><code>${escapeHTML(r.userId || "Firebase UID নেই")}</code></td>
+                <td>${action}</td>
               </tr>
             `;
           }).join("");
+
+          return `
+            <tr class="admin-tournament-group">
+              <td colspan="5"><strong>🏆 ${escapeHTML(tournamentTitle)}</strong>
+                <small> — ${players.length} জন Player</small>
+              </td>
+            </tr>
+            ${playerRows}
+          `;
+        }).join("");
+
+        $("#adminRegistrations").innerHTML = html;
+      }
     }
+
   } catch (error) {
     console.error("Admin data error:", error);
     showMessage("Admin Data লোড হয়নি।", true);
@@ -1226,7 +1263,6 @@ async function loadLeaderboard() {
             <td>${escapeHTML(r.player || "")}</td>
             <td>${Number(r.placement || 0)}</td>
             <td>${Number(r.points || 0)}</td>
-            <td>৳${money(r.prizeAmount || 0)}</td>
           </tr>
         `;
       }).join("") || '<tr><td colspan="5">এখনো ফলাফল প্রকাশ হয়নি।</td></tr>';
@@ -1244,5 +1280,3 @@ async function loadLeaderboard() {
 // INITIAL PUBLIC DATA
 loadTournaments();
 loadLeaderboard();
-
-      
