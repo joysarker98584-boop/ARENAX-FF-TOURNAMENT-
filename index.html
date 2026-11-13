@@ -459,39 +459,52 @@
 
 <script type="module" src="./app.js?v=20261113-2"></script>
 <script>
-let deferredInstallPrompt = null;
+document.addEventListener("DOMContentLoaded", () => {
 
-const installBtn = document.getElementById("installAppBtn");
+  const installBtn = document.getElementById("installAppBtn");
 
-window.addEventListener("beforeinstallprompt", (event) => {
-  event.preventDefault();
-  deferredInstallPrompt = event;
-  console.log("ARENAX Install Ready");
-});
+  if (!installBtn) {
+    console.error("Install button not found!");
+    return;
+  }
 
-installBtn.addEventListener("click", async () => {
+  // বাটন সবসময় দৃশ্যমান থাকবে
+  installBtn.style.setProperty("display", "inline-flex", "important");
+  installBtn.style.setProperty("visibility", "visible", "important");
+  installBtn.style.setProperty("opacity", "1", "important");
 
-  if (deferredInstallPrompt) {
-    deferredInstallPrompt.prompt();
+  let installPrompt = null;
 
-    const result = await deferredInstallPrompt.userChoice;
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    installPrompt = event;
+  });
 
-    deferredInstallPrompt = null;
+  installBtn.addEventListener("click", async () => {
 
-    if (result.outcome === "accepted") {
-      installBtn.style.display = "none";
+    if (installPrompt) {
+      installPrompt.prompt();
+
+      const result = await installPrompt.userChoice;
+
+      if (result.outcome === "accepted") {
+        installBtn.style.display = "none";
+      }
+
+      installPrompt = null;
+
+    } else {
+      alert("Chrome-এর Install সুবিধা এখনো প্রস্তুত নয়। Chrome-এর তিন ডট মেনু থেকে Install app নির্বাচন করো।");
     }
 
-  } else {
-    alert(
-      "Chrome-এর তিন ডট মেনু থেকে Install app অথবা Add to Home screen চাপুন।"
-    );
-  }
-});
+  });
 
-window.addEventListener("appinstalled", () => {
-  installBtn.style.display = "none";
+  window.addEventListener("appinstalled", () => {
+    installBtn.style.display = "none";
+  });
+
 });
+  </script>
 </script></body>
   </html>
 
