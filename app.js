@@ -445,10 +445,14 @@ window.openJoinForm = (tournamentId) => {
   });
 };
 
-// REGISTER TOURNAMENT — AUTOMATIC JOIN + WALLET ENTRY FEE
+// ==========================================
+// ARENAX TOURNAMENT JOIN
+// AUTOMATIC REGISTRATION + WALLET ENTRY FEE
+// ==========================================
+
 $("#registrationForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
-  
+
   if (!currentUser) {
     showMessage("আগে Login করো।", true);
     page("account");
@@ -457,65 +461,133 @@ $("#registrationForm")?.addEventListener("submit", async (event) => {
 
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
-  const tournamentId = String(data.tournamentId || "");
+
+  const tournamentId = String(data.tournamentId || "").trim();
   const playerName = String(data.playerName || "").trim();
   const gameUsername = String(data.gameUsername || "").trim();
   const uid = String(data.uid || "").trim();
   const teamName = String(data.teamName || "").trim();
 
-  if (!tournamentId || !playerName || !gameUsername || !/^[0-9]{5,20}$/.test(uid)) {
+  if (
+    !tournamentId ||
+    !playerName ||
+    !gameUsername ||
+    !/^[0-9]{5,20}$/.test(uid)
+  ) {
     showMessage("সব তথ্য সঠিকভাবে পূরণ করো।", true);
     return;
   }
 
+  let joinStage = "Starting";
+
   try {
     const tournamentRef = doc(db, "tournaments", tournamentId);
-    const registrationRef = doc(db, "registrations", `${tournamentId}_${currentUser.uid}`);
+
+    const registrationId = `${tournamentId}_${currentUser.uid}`;
+
+    const registrationRef = doc(
+      db,
+      "registrations",
+      registrationId
+    );
+
+    // Read Wallet Ledger
+    joinStage = "Wallet Ledger Read";
+
     const ledgerQuery = query(
-  collection(db, "paymentRequests"),
-  where("userId", "==", currentUser.uid)
-);
+      collection(db, "paymentRequests"),
+      where("userId", "==", currentUser.uid)
+    );
 
-const feeRef = doc(collection(db, "paymentRequests"));
+    const ledgerSnap = await getDocs(ledgerQuery);
 
-// Transaction-এর বাইরে Wallet Ledger Query পড়বে
-const ledgerSnap = await getDocs(ledgerQuery);
+    // Prepare fee ledger document
+    const feeRef = doc(collection(db, "paymentRequests"));
 
-await runTransaction(db, async (tx) => {
-  // Transaction-এর ভিতরে শুধু Document পড়বে
-  const [tournamentSnap, existingSnap] = await Promise.all([
-    tx.get(tournamentRef),
-    tx.get(registrationRef)
-  ]);
+    joinStage = "Tournament Transaction";
 
-      if (!tournamentSnap.exists()) throw new Error("Tournament পাওয়া যায়নি।");
-      if (existingSnap.exists()) throw new Error("এই Tournament-এ তুমি আগে Join করেছ।");
+    await runTransaction(db, async (tx) => {
+
+      // Read documents before writing
+      const [tournamentSnap, existingSnap] = await Promise.all([
+        tx.get(tournamentRef),
+        tx.get(registrationRef)
+      ]);
+
+      if (!tournamentSnap.exists()) {
+        throw new Error("Tournament পাওয়া যায়নি।");
+      }
+
+      if (existingSnap.exists()) {
+        throw new Error("এই Tournament-এ তুমি আগে Join করেছ।");
+      }
 
       const tournament = tournamentSnap.data();
-      if (String(tournament.status || "published").toLowerCase() !== "published") {
+
+      if (
+        String(tournament.status || "published").toLowerCase() !== "published"
+      ) {
         throw new Error("এই Tournament এখন Join করা যাচ্ছে না।");
       }
 
       const fee = Number(tournament.entryFee || 0);
       const joined = Number(tournament.joined || 0);
       const slots = Number(tournament.slots || 0);
-      if (!Number.isFinite(fee) || fee < 0) throw new Error("Tournament Entry Fee সঠিক নয়।");
-      if (slots > 0 && joined >= slots) throw new Error("এই Tournament-এর Slot পূর্ণ হয়ে গেছে।");
 
+      if (!Number.isFinite(fee) || fee < 0) {
+        throw new Error("Tournament Entry Fee সঠিক নয়।");
+      }
+
+      if (
+        !Number.isInteger(joined) ||
+        !Number.isInteger(slots) ||
+        slots < 1
+      ) {
+        throw new Error("Tournament Slot তথ্য সঠিক নয়।");
+      }
+
+      if (joined >= slots) {
+        throw new Error("এই Tournament-এর Slot পূর্ণ হয়ে গেছে।");
+      }
+
+      // Calculate wallet balance
       let balance = 0;
+
       ledgerSnap.forEach((item) => {
         const payment = item.data();
+        const amount = Number(payment.amount || 0);
+
         if (payment.status === "approved") {
-          if (payment.type === "deposit" || payment.type === "tournament_prize") balance += Number(payment.amount || 0);
-          if (payment.type === "tournament_fee" || payment.type === "withdraw") balance -= Number(payment.amount || 0);
-        } else if (payment.type === "withdraw" && payment.status === "pending") {
-          balance -= Number(payment.amount || 0);
+          if (
+            payment.type === "deposit" ||
+            payment.type === "tournament_prize"
+          ) {
+            balance += amount;
+          }
+
+          if (
+            payment.type === "tournament_fee" ||
+            payment.type === "withdraw"
+          ) {
+            balance -= amount;
+          }
+
+        } else if (
+          payment.type === "withdraw" &&
+          payment.status === "pending"
+        ) {
+          balance -= amount;
         }
       });
 
       if (balance < fee) {
-        throw new Error(`Wallet Balance পর্যাপ্ত নয়। প্রয়োজন ৳${money(fee)}, আছে ৳${money(balance)}।`);
+        throw new Error(
+          `Wallet Balance পর্যাপ্ত নয়। প্রয়োজন ৳${money(fee)}, আছে ৳${money(balance)}।`
+        );
       }
+
+      // Create registration
+      joinStage = "Registration Create";
 
       tx.set(registrationRef, {
         userId: currentUser.uid,
@@ -531,9 +603,17 @@ await runTransaction(db, async (tx) => {
         autoJoined: true
       });
 
-      tx.update(tournamentRef, { joined: joined + 1 });
+      // Update tournament joined count
+      joinStage = "Tournament Joined Update";
 
+      tx.update(tournamentRef, {
+        joined: joined + 1
+      });
+
+      // Deduct entry fee from wallet
       if (fee > 0) {
+        joinStage = "Entry Fee Ledger Create";
+
         tx.set(feeRef, {
           userId: currentUser.uid,
           type: "tournament_fee",
@@ -548,12 +628,23 @@ await runTransaction(db, async (tx) => {
     });
 
     form.reset();
-    showMessage("সফলভাবে Tournament Join হয়েছে। Entry Fee Wallet থেকে কেটে নেওয়া হয়েছে।");
+
+    showMessage(
+      "সফলভাবে Tournament Join হয়েছে। Entry Fee Wallet থেকে কেটে নেওয়া হয়েছে।"
+    );
+
     await loadPlayerData();
     await loadTournaments();
+
   } catch (error) {
-    console.error("Automatic tournament join error:", error);
-    showMessage(error.message || "Tournament Join করা যায়নি।", true);
+    console.error("TOURNAMENT JOIN ERROR:", error);
+    console.error("ERROR STAGE:", joinStage);
+    console.error("ERROR CODE:", error.code);
+
+    showMessage(
+      `${joinStage} ব্যর্থ হয়েছে: ${error.message || "Unknown Error"}`,
+      true
+    );
   }
 });
 
