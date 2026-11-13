@@ -400,37 +400,64 @@
 <footer>© 2026 ArenaX • Independent community tournament platform. Not affiliated with Garena / Free Fire.</footer>
 
 <script>
-  let deferredInstallPrompt = null;
+(() => {
   const installButton = document.getElementById("installAppBtn");
+  let deferredInstallPrompt = null;
+
+  // Hide the button until Chrome confirms that installation is available.
+  if (installButton) installButton.style.display = "none";
+
+  const isInstalled = () =>
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+
+  if (isInstalled() && installButton) {
+    installButton.style.display = "none";
+  }
 
   window.addEventListener("beforeinstallprompt", (event) => {
+    // Chrome decides when the site is eligible; the page cannot force this event.
     event.preventDefault();
     deferredInstallPrompt = event;
-    if (installButton) installButton.hidden = false;
+    if (installButton && !isInstalled()) {
+      installButton.style.display = "";
+      installButton.textContent = "📲 Install ARENAX";
+    }
   });
 
   installButton?.addEventListener("click", async () => {
     if (!deferredInstallPrompt) {
-      alert("Chrome-এর তিন ডট (⋮) মেনু থেকে 'Install app' অথবা 'Add to Home screen' চাপুন।");
+      alert("এখনো Chrome-এর Install সুবিধা প্রস্তুত হয়নি। Chrome-এর ⋮ মেনু থেকে Install app / Add to Home screen দেখুন।");
       return;
     }
 
-    deferredInstallPrompt.prompt();
-    await deferredInstallPrompt.userChoice;
+    const promptEvent = deferredInstallPrompt;
     deferredInstallPrompt = null;
+
+    await promptEvent.prompt();
+    const choice = await promptEvent.userChoice;
+
+    if (choice?.outcome === "accepted" && installButton) {
+      installButton.style.display = "none";
+    }
   });
 
   window.addEventListener("appinstalled", () => {
-    if (installButton) installButton.hidden = true;
     deferredInstallPrompt = null;
+    if (installButton) installButton.style.display = "none";
   });
 
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js")
-        .catch((error) => console.error("Service Worker registration failed:", error));
+    window.addEventListener("load", async () => {
+      try {
+        await navigator.serviceWorker.register("./service-worker.js", { scope: "./" });
+        console.log("ARENAX service worker registered.");
+      } catch (error) {
+        console.error("ARENAX service worker registration failed:", error);
+      }
     });
   }
+})();
 </script>
 
 <script type="module" src="./app.js?v=20261113-2"></script>
