@@ -405,6 +405,7 @@ async function loadTournaments() {
         ).join("");
 
       if (previous) select.value = previous;
+      updateRegistrationPlayerFields();
     }
 
     const adminRoomSelect = $("#adminRoomTournament");
@@ -437,6 +438,7 @@ window.openJoinForm = (tournamentId) => {
 
   const select = $("#tournamentSelect");
   if (select) select.value = tournamentId;
+  updateRegistrationPlayerFields();
 
   page("myMatches");
   $("#registrationForm")?.scrollIntoView({
@@ -446,6 +448,53 @@ window.openJoinForm = (tournamentId) => {
 };
 
 // ==========================================
+// MODE-BASED REGISTRATION FIELDS: SOLO=1, DUO=2, SQUAD=4
+function getTournamentMode(tournament) {
+  const mode = String(tournament?.mode || "Solo").trim().toLowerCase();
+  if (mode === "duo") return "Duo";
+  if (mode === "squad") return "Squad";
+  return "Solo";
+}
+
+function updateRegistrationPlayerFields() {
+  const select = $("#tournamentSelect");
+  const container = $("#registrationPlayers");
+  const teamField = $("#teamNameField");
+  const teamInput = $("#registrationTeamName");
+  if (!select || !container) return;
+
+  const selected = tournamentCache.find((item) => item.id === select.value);
+  if (!selected) {
+    container.innerHTML = '<p class="hint">Tournament বেছে নিলে Player তথ্যের ঘর আসবে।</p>';
+    if (teamField) teamField.style.display = "none";
+    if (teamInput) teamInput.value = "";
+    return;
+  }
+
+  const mode = getTournamentMode(selected.data);
+  const count = mode === "Duo" ? 2 : mode === "Squad" ? 4 : 1;
+  container.innerHTML = `
+    <div class="eyebrow" style="grid-column:1/-1">${mode} REGISTRATION — ${count} PLAYER${count > 1 ? "S" : ""}</div>
+    ${Array.from({ length: count }, (_, index) => {
+      const number = index + 1;
+      return `
+        <div class="panel" style="grid-column:1/-1;padding:14px">
+          <b>Player ${number}</b>
+          <label>Player ${number} Game Name
+            <input name="player${number}Name" maxlength="40" placeholder="Player ${number}-এর Free Fire Game Name" required>
+          </label>
+          <label>Player ${number} Free Fire UID
+            <input name="player${number}Uid" inputmode="numeric" pattern="[0-9]{5,20}" maxlength="20" placeholder="Player ${number}-এর UID" required>
+          </label>
+        </div>`;
+    }).join("")}
+  `;
+  if (teamField) teamField.style.display = count > 1 ? "" : "none";
+  if (teamInput && count === 1) teamInput.value = "";
+}
+
+$("#tournamentSelect")?.addEventListener("change", updateRegistrationPlayerFields);
+
 // ARENAX TOURNAMENT JOIN
 // AUTOMATIC REGISTRATION + WALLET ENTRY FEE
 // ==========================================
@@ -461,20 +510,11 @@ $("#registrationForm")?.addEventListener("submit", async (event) => {
 
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
-
   const tournamentId = String(data.tournamentId || "").trim();
-  const playerName = String(data.playerName || "").trim();
-  const gameUsername = String(data.gameUsername || "").trim();
-  const uid = String(data.uid || "").trim();
   const teamName = String(data.teamName || "").trim();
 
-  if (
-    !tournamentId ||
-    !playerName ||
-    !gameUsername ||
-    !/^[0-9]{5,20}$/.test(uid)
-  ) {
-    showMessage("সব তথ্য সঠিকভাবে পূরণ করো।", true);
+  if (!tournamentId) {
+    showMessage("Tournament বেছে নাও।", true);
     return;
   }
 
@@ -482,138 +522,98 @@ $("#registrationForm")?.addEventListener("submit", async (event) => {
 
   try {
     const tournamentRef = doc(db, "tournaments", tournamentId);
-
     const registrationId = `${tournamentId}_${currentUser.uid}`;
+    const registrationRef = doc(db, "registrations", registrationId);
 
-    const registrationRef = doc(
-      db,
-      "registrations",
-      registrationId
-    );
+    joinStage = "Tournament Information Read";
+    const selectedTournament = tournamentCache.find((item) => item.id === tournamentId);
+    if (!selectedTournament) throw new Error("Tournament তালিকায় পাওয়া যায়নি।");
 
-    // Read Wallet Ledger
+    const mode = getTournamentMode(selectedTournament.data);
+    const requiredPlayers = mode === "Duo" ? 2 : mode === "Squad" ? 4 : 1;
+    const players = [];
+
+    for (let i = 1; i <= requiredPlayers; i++) {
+      const gameUsername = String(data[`player${i}Name`] || "").trim();
+      const uid = String(data[`player${i}Uid`] || "").trim();
+      if (!gameUsername || !/^[0-9]{5,20}$/.test(uid)) {
+        throw new Error(`Player ${i}-এর Game Name অথবা UID সঠিক নয়।`);
+      }
+      players.push({ slot: i, gameUsername, uid });
+    }
+
     joinStage = "Wallet Ledger Read";
-
-    const ledgerQuery = query(
+    const ledgerSnap = await getDocs(query(
       collection(db, "paymentRequests"),
       where("userId", "==", currentUser.uid)
-    );
-
-    const ledgerSnap = await getDocs(ledgerQuery);
-
-    // Prepare fee ledger document
+    ));
     const feeRef = doc(collection(db, "paymentRequests"));
 
     joinStage = "Tournament Transaction";
-
     await runTransaction(db, async (tx) => {
+      const tournamentSnap = await tx.get(tournamentRef);
+      if (!tournamentSnap.exists()) throw new Error("Tournament পাওয়া যায়নি।");
 
-      // Read documents before writing
-      const [tournamentSnap, existingSnap] = await Promise.all([
-        tx.get(tournamentRef),
-        tx.get(registrationRef)
-      ]);
-
-      if (!tournamentSnap.exists()) {
-        throw new Error("Tournament পাওয়া যায়নি।");
-      }
-
-      if (existingSnap.exists()) {
-        throw new Error("এই Tournament-এ তুমি আগে Join করেছ।");
-      }
+      const existingSnap = await tx.get(registrationRef);
+      if (existingSnap.exists()) throw new Error("এই Tournament-এ তুমি আগে Join করেছ।");
 
       const tournament = tournamentSnap.data();
-
-      if (
-        String(tournament.status || "published").toLowerCase() !== "published"
-      ) {
+      if (String(tournament.status || "published").toLowerCase() !== "published") {
         throw new Error("এই Tournament এখন Join করা যাচ্ছে না।");
+      }
+
+      const liveMode = getTournamentMode(tournament);
+      const liveCount = liveMode === "Duo" ? 2 : liveMode === "Squad" ? 4 : 1;
+      if (liveMode !== mode || players.length !== liveCount) {
+        throw new Error("Tournament Mode পরিবর্তিত হয়েছে। ফর্ম আবার খুলে তথ্য দাও।");
       }
 
       const fee = Number(tournament.entryFee || 0);
       const joined = Number(tournament.joined || 0);
       const slots = Number(tournament.slots || 0);
-
-      if (!Number.isFinite(fee) || fee < 0) {
-        throw new Error("Tournament Entry Fee সঠিক নয়।");
-      }
-
-      if (
-        !Number.isInteger(joined) ||
-        !Number.isInteger(slots) ||
-        slots < 1
-      ) {
+      if (!Number.isFinite(fee) || fee < 0) throw new Error("Tournament Entry Fee সঠিক নয়।");
+      if (!Number.isInteger(joined) || !Number.isInteger(slots) || slots < 1) {
         throw new Error("Tournament Slot তথ্য সঠিক নয়।");
       }
+      if (joined >= slots) throw new Error("এই Tournament-এর Slot পূর্ণ হয়ে গেছে।");
 
-      if (joined >= slots) {
-        throw new Error("এই Tournament-এর Slot পূর্ণ হয়ে গেছে।");
-      }
-
-      // Calculate wallet balance
       let balance = 0;
-
       ledgerSnap.forEach((item) => {
         const payment = item.data();
         const amount = Number(payment.amount || 0);
-
         if (payment.status === "approved") {
-          if (
-            payment.type === "deposit" ||
-            payment.type === "tournament_prize"
-          ) {
-            balance += amount;
-          }
-
-          if (
-            payment.type === "tournament_fee" ||
-            payment.type === "withdraw"
-          ) {
-            balance -= amount;
-          }
-
-        } else if (
-          payment.type === "withdraw" &&
-          payment.status === "pending"
-        ) {
+          if (payment.type === "deposit" || payment.type === "tournament_prize") balance += amount;
+          if (payment.type === "tournament_fee" || payment.type === "withdraw") balance -= amount;
+        } else if (payment.type === "withdraw" && payment.status === "pending") {
           balance -= amount;
         }
       });
-
       if (balance < fee) {
-        throw new Error(
-          `Wallet Balance পর্যাপ্ত নয়। প্রয়োজন ৳${money(fee)}, আছে ৳${money(balance)}।`
-        );
+        throw new Error(`Wallet Balance পর্যাপ্ত নয়। প্রয়োজন ৳${money(fee)}, আছে ৳${money(balance)}।`);
       }
 
-      // Create registration
       joinStage = "Registration Create";
-
       tx.set(registrationRef, {
         userId: currentUser.uid,
         tournamentId,
         tournamentTitle: tournament.title || "",
-        playerName,
-        gameUsername,
-        uid,
-        teamName,
+        mode: liveMode,
+        playerName: players[0].gameUsername,
+        gameUsername: players[0].gameUsername,
+        uid: players[0].uid,
+        players,
+        teamName: liveMode === "Solo" ? "" : teamName,
         status: "approved",
         createdAt: serverTimestamp(),
         approvedAt: serverTimestamp(),
         autoJoined: true
       });
 
-      // Update tournament joined count
       joinStage = "Tournament Joined Update";
+      tx.update(tournamentRef, { joined: joined + 1 });
 
-      tx.update(tournamentRef, {
-        joined: joined + 1
-      });
-
-      // Deduct entry fee from wallet
       if (fee > 0) {
         joinStage = "Entry Fee Ledger Create";
-
         tx.set(feeRef, {
           userId: currentUser.uid,
           type: "tournament_fee",
@@ -628,23 +628,15 @@ $("#registrationForm")?.addEventListener("submit", async (event) => {
     });
 
     form.reset();
-
-    showMessage(
-      "সফলভাবে Tournament Join হয়েছে। Entry Fee Wallet থেকে কেটে নেওয়া হয়েছে।"
-    );
-
+    updateRegistrationPlayerFields();
+    showMessage("সফলভাবে Tournament Join হয়েছে। Entry Fee Wallet থেকে কেটে নেওয়া হয়েছে।");
     await loadPlayerData();
     await loadTournaments();
-
   } catch (error) {
     console.error("TOURNAMENT JOIN ERROR:", error);
     console.error("ERROR STAGE:", joinStage);
     console.error("ERROR CODE:", error.code);
-
-    showMessage(
-      `${joinStage} ব্যর্থ হয়েছে: ${error.message || "Unknown Error"}`,
-      true
-    );
+    showMessage(`${joinStage} ব্যর্থ হয়েছে: ${error.message || "Unknown Error"}`, true);
   }
 });
 
@@ -668,8 +660,13 @@ async function loadPlayerData() {
               <div class="match-row">
                 <b>${escapeHTML(r.tournamentTitle || r.tournamentId)}</b>
                 <p>Player: ${escapeHTML(r.playerName)}</p>
-                <p>Game Username: ${escapeHTML(r.gameUsername || "-")}</p>
-                <p>UID: ${escapeHTML(r.uid)}</p>
+                ${Array.isArray(r.players) && r.players.length
+                  ? r.players.map((member, index) => `
+                    <p>Player ${index + 1}: ${escapeHTML(member.gameUsername || "-")}</p>
+                    <p>UID: ${escapeHTML(member.uid || "-")}</p>
+                  `).join("")
+                  : `<p>Game Username: ${escapeHTML(r.gameUsername || "-")}</p>
+                     <p>UID: ${escapeHTML(r.uid || "-")}</p>`}
                 ${r.status === "approved" && r.roomId ? `
                   <div class="room-details">
                     <b>🎮 Match Room Details</b>
@@ -967,9 +964,13 @@ async function loadAdminData() {
 
             return `
               <tr>
-                <td>${escapeHTML(r.playerName || "-")}</td>
-                <td>${escapeHTML(r.gameUsername || "-")}</td>
-                <td>${escapeHTML(r.uid || "-")}</td>
+                <td>${escapeHTML(r.teamName || r.playerName || "-")}</td>
+                <td>${Array.isArray(r.players) && r.players.length
+                  ? r.players.map((member, index) => `P${index + 1}: ${escapeHTML(member.gameUsername || "-")}`).join("<br>")
+                  : escapeHTML(r.gameUsername || "-")}</td>
+                <td>${Array.isArray(r.players) && r.players.length
+                  ? r.players.map((member, index) => `P${index + 1}: ${escapeHTML(member.uid || "-")}`).join("<br>")
+                  : escapeHTML(r.uid || "-")}</td>
                 <td><code>${escapeHTML(r.userId || "Firebase UID নেই")}</code></td>
                 <td>${action}</td>
               </tr>
@@ -1006,7 +1007,7 @@ window.reviewPayment = async (paymentId, status) => {
   if (!(await checkAdmin())) {
     showMessage("Admin permission নেই।", true);
     return;
-  }
+        }
 
   if (!["approved", "rejected"].includes(status)) return;
 
@@ -1509,5 +1510,6 @@ async function loadLeaderboard() {
 // INITIAL PUBLIC DATA
 loadTournaments();
 loadLeaderboard();
+
 
       
