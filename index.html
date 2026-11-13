@@ -404,8 +404,6 @@
   const installButton = document.getElementById("installAppBtn");
   let deferredInstallPrompt = null;
 
-  // Hide the button until Chrome confirms that installation is available.
-  if (installButton) installButton.style.display = "none";
 
   const isInstalled = () =>
     window.matchMedia("(display-mode: standalone)").matches ||
