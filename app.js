@@ -1227,10 +1227,13 @@ document.addEventListener("submit", async (event) => {
   }
 });
 
-// PUBLISH RESULT + CREDIT WINNING PRIZE TO THE PLAYER WALLET
-// The admin enters the player's Firebase Auth UID (stored as registrations.userId).
+// ========================================
+// ADMIN RESULT PUBLISH + WINNING PRIZE
+// ========================================
+
 document.addEventListener("submit", async (event) => {
   if (event.target.id !== "resultForm") return;
+
   event.preventDefault();
 
   if (!(await checkAdmin())) {
@@ -1240,57 +1243,104 @@ document.addEventListener("submit", async (event) => {
 
   const form = event.target;
   const data = Object.fromEntries(new FormData(form));
+
+  const playerName = String(data.player || "").trim();
+  const winnerUserId = String(data.userId || "").trim();
+  const tournamentId = String(data.tournamentId || "").trim();
+
   const placement = Number(data.placement);
   const points = Number(data.points);
   const prizeAmount = Number(data.prizeAmount || 0);
-  // New form field is userId. Old winnerUid is accepted temporarily for compatibility.
-  const winnerUserId = String(data.userId || data.winnerUserId || data.winnerUid || "").trim();
-  const tournamentId = String(data.tournamentId || "").trim();
-  const playerName = String(data.player || "").trim();
+
+  if (!playerName || !tournamentId) {
+    showMessage("Player Name ও Tournament ID দিতে হবে।", true);
+    return;
+  }
 
   if (
-    !playerName || !tournamentId ||
-    !Number.isInteger(placement) || placement < 1 ||
-    !Number.isFinite(points) || points < 0 ||
-    !Number.isFinite(prizeAmount) || prizeAmount < 0 || prizeAmount > 1000000 ||
-    (prizeAmount > 0 && !winnerUserId)
+    !Number.isInteger(placement) ||
+    placement < 1 ||
+    !Number.isFinite(points) ||
+    points < 0 ||
+    !Number.isFinite(prizeAmount) ||
+    prizeAmount < 0
   ) {
-    showMessage("Result-এর তথ্য সঠিকভাবে পূরণ করো। Prize দিলে Player-এর userId দিতে হবে।", true);
+    showMessage("Placement, Points অথবা Prize সঠিক নয়।", true);
+    return;
+  }
+
+  if (prizeAmount > 0 && !winnerUserId) {
+    showMessage("Winning Prize দিতে Player userId আবশ্যক।", true);
     return;
   }
 
   try {
+    let winnerRegistration = null;
+    let prizeLedgerRef = null;
+
+    // WINNER REGISTRATION VERIFY
     if (prizeAmount > 0) {
-      // Validate userId against this tournament's registration, not users/{userId}.
-      const winnerRegistrationSnap = await getDocs(query(
+
+      const registrationSnap = await getDocs(query(
         collection(db, "registrations"),
         where("userId", "==", winnerUserId),
         where("tournamentId", "==", tournamentId)
       ));
 
-      if (winnerRegistrationSnap.empty) {
-        throw new Error("এই userId দিয়ে নির্বাচিত Tournament-এ কোনো Registration পাওয়া যায়নি। Registration তালিকা থেকে সঠিক userId ও Tournament ID ব্যবহার করো।");
+      winnerRegistration = registrationSnap.docs.find(
+        item => item.data().status === "approved"
+      );
+
+      if (!winnerRegistration) {
+        throw new Error(
+          "এই userId দিয়ে নির্বাচিত Tournament-এ Approved Registration পাওয়া যায়নি।"
+        );
+      }
+
+      // একই Player + Tournament-এর Prize Ledger ID স্থায়ী থাকবে।
+      const safeTournamentId = tournamentId.replaceAll("/", "_");
+
+      const prizeLedgerId =
+        `prize_${safeTournamentId}_${winnerUserId}`;
+
+      prizeLedgerRef = doc(
+        db,
+        "paymentRequests",
+        prizeLedgerId
+      );
+
+      // DUPLICATE PRIZE CHECK
+      const oldPrize = await getDoc(prizeLedgerRef);
+
+      if (oldPrize.exists()) {
+        throw new Error(
+          "এই Player এই Tournament-এর Winning Prize আগেই পেয়েছে। দ্বিতীয়বার দেওয়া যাবে না।"
+        );
       }
     }
 
-    // One atomic batch: result + approved wallet-ledger credit.
-    // The ledger document uses the result ID, preventing duplicate credit for this result.
+    // RESULT DOCUMENT
     const resultRef = doc(collection(db, "results"));
+
     const batch = writeBatch(db);
+
     batch.set(resultRef, {
       player: playerName,
       userId: winnerUserId || null,
-      placement,
-      points,
-      prizeAmount,
-      prizeStatus: prizeAmount > 0 ? "credited" : "no_prize",
-      tournamentId,
+      placement: placement,
+      points: points,
+      prizeAmount: prizeAmount,
+      prizeStatus: prizeAmount > 0
+        ? "credited"
+        : "no_prize",
+      tournamentId: tournamentId,
       createdAt: serverTimestamp(),
       createdBy: auth.currentUser.uid
     });
 
+    // WINNING PRIZE WALLET CREDIT
     if (prizeAmount > 0) {
-      const prizeLedgerRef = doc(db, "paymentRequests", `prize_${resultRef.id}`);
+
       batch.set(prizeLedgerRef, {
         userId: winnerUserId,
         type: "tournament_prize",
@@ -1298,7 +1348,7 @@ document.addEventListener("submit", async (event) => {
         status: "approved",
         method: "Tournament Winning Prize",
         reference: `Result ${resultRef.id}`,
-        tournamentId,
+        tournamentId: tournamentId,
         resultId: resultRef.id,
         createdAt: serverTimestamp(),
         reviewedAt: serverTimestamp(),
@@ -1306,19 +1356,32 @@ document.addEventListener("submit", async (event) => {
       });
     }
 
+    // BOTH WRITES COMMIT TOGETHER
     await batch.commit();
+
     form.reset();
-    showMessage(prizeAmount > 0
-      ? `Result Publish হয়েছে এবং ৳${money(prizeAmount)} Winning Prize Player Wallet-এ যোগ হয়েছে।`
-      : "Result Publish হয়েছে।");
+
+    showMessage(
+      prizeAmount > 0
+        ? `Result Publish হয়েছে! ৳${money(prizeAmount)} Player Wallet-এ যোগ হয়েছে।`
+        : "Result সফলভাবে Publish হয়েছে।"
+    );
+
     await loadLeaderboard();
-    if (currentUser) await loadPlayerData();
+
+    if (currentUser) {
+      await loadPlayerData();
+    }
+
   } catch (error) {
-    console.error("Publish result / prize credit error:", error);
-    showMessage(error.message || "Result Publish করা যায়নি।", true);
+    console.error("Winning Prize Error:", error);
+
+    showMessage(
+      error.message || "Winning Prize Publish করা যায়নি।",
+      true
+    );
   }
 });
-
 // LEADERBOARD
 async function loadLeaderboard() {
   try {
