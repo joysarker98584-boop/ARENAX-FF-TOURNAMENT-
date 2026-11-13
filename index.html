@@ -411,10 +411,7 @@
     window.matchMedia("(display-mode: standalone)").matches ||
     window.navigator.standalone === true;
 
-  if (isInstalled() && installButton) {
-    installButton.style.display = "none";
-  }
-
+  
   window.addEventListener("beforeinstallprompt", (event) => {
     // Chrome decides when the site is eligible; the page cannot force this event.
     event.preventDefault();
