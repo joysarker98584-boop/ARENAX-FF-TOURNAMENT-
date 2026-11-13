@@ -118,28 +118,16 @@
           <option value="">টুর্নামেন্ট বেছে নাও</option>
         </select>
       </label>
-
-      <label>Player / Team Name
-        <input name="playerName" maxlength="40" placeholder="তোমার নাম বা Team Name" required>
+      <div id="registrationPlayers" class="form-grid" style="grid-column:1/-1">
+        <p class="hint">Tournament বেছে নিলে Solo / Duo / Squad অনুযায়ী Player তথ্যের ঘর আসবে।</p>
+      </div>
+      <label id="teamNameField" style="display:none">Team Name (Duo / Squad — ঐচ্ছিক)
+        <input name="teamName" id="registrationTeamName" maxlength="40" placeholder="তোমার Team Name">
       </label>
-
-      <label>Game Username
-        <input name="gameUsername" maxlength="40" placeholder="Free Fire-এর In-game নাম" required>
-      </label>
-
-      <label>Free Fire UID
-        <input name="uid" inputmode="numeric" pattern="[0-9]{5,20}" placeholder="তোমার Free Fire UID" required>
-      </label>
-
-      <label>Team Name (Duo / Squad)
-        <input name="teamName" maxlength="40" placeholder="Team Name (ঐচ্ছিক)">
-      </label>
-
       <div class="join-note">
         <b>⚠️ গুরুত্বপূর্ণ</b>
-        <p>Game Username ও UID সঠিকভাবে লিখবে। ভুল তথ্য দিলে ম্যাচে অংশ নিতে সমস্যা হতে পারে।</p>
+        <p>প্রতিটি Player-এর সঠিক Free Fire Game Name ও ৫–২০ সংখ্যার UID দিতে হবে। Duo-তে ২ জন এবং Squad-এ ৪ জনের তথ্য আবশ্যক।</p>
       </div>
-
       <button class="btn primary join-submit" type="submit">🏆 রেজিস্ট্রেশন পাঠাও</button>
     </form>
   </div>
@@ -406,8 +394,9 @@
 </nav>
 
 <footer>© 2026 ArenaX • Independent community tournament platform. Not affiliated with Garena / Free Fire.</footer>
-<script type="module" src="./app.js?v=20261113-1"></script>
+<script type="module" src="./app.js?v=20261113-2"></script>
 </body>
   </html>
 
-      
+
+  
