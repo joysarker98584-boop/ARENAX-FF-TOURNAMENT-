@@ -461,7 +461,41 @@
 </script>
 
 <script type="module" src="./app.js?v=20261113-2"></script>
-</body>
+<script>
+let deferredInstallPrompt = null;
+
+const installBtn = document.getElementById("installAppBtn");
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  console.log("ARENAX Install Ready");
+});
+
+installBtn.addEventListener("click", async () => {
+
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+
+    const result = await deferredInstallPrompt.userChoice;
+
+    deferredInstallPrompt = null;
+
+    if (result.outcome === "accepted") {
+      installBtn.style.display = "none";
+    }
+
+  } else {
+    alert(
+      "Chrome-এর তিন ডট মেনু থেকে Install app অথবা Add to Home screen চাপুন।"
+    );
+  }
+});
+
+window.addEventListener("appinstalled", () => {
+  installBtn.style.display = "none";
+});
+</script></body>
   </html>
 
 
