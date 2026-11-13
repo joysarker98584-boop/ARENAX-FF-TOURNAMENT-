@@ -472,18 +472,21 @@ $("#registrationForm")?.addEventListener("submit", async (event) => {
     const tournamentRef = doc(db, "tournaments", tournamentId);
     const registrationRef = doc(db, "registrations", `${tournamentId}_${currentUser.uid}`);
     const ledgerQuery = query(
-      collection(db, "paymentRequests"),
-      where("userId", "==", currentUser.uid)
-    );
-    const feeRef = doc(collection(db, "paymentRequests"));
+  collection(db, "paymentRequests"),
+  where("userId", "==", currentUser.uid)
+);
 
-    await runTransaction(db, async (tx) => {
-      // Read all documents before writing.
-      const [tournamentSnap, existingSnap, ledgerSnap] = await Promise.all([
-        tx.get(tournamentRef),
-        tx.get(registrationRef),
-        tx.get(ledgerQuery)
-      ]);
+const feeRef = doc(collection(db, "paymentRequests"));
+
+// Transaction-এর বাইরে Wallet Ledger Query পড়বে
+const ledgerSnap = await getDocs(ledgerQuery);
+
+await runTransaction(db, async (tx) => {
+  // Transaction-এর ভিতরে শুধু Document পড়বে
+  const [tournamentSnap, existingSnap] = await Promise.all([
+    tx.get(tournamentRef),
+    tx.get(registrationRef)
+  ]);
 
       if (!tournamentSnap.exists()) throw new Error("Tournament পাওয়া যায়নি।");
       if (existingSnap.exists()) throw new Error("এই Tournament-এ তুমি আগে Join করেছ।");
