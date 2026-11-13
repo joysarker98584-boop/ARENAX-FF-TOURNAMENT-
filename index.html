@@ -458,46 +458,7 @@
 </script>
 
 <script type="module" src="./app.js?v=20261113-2"></script>
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const installBtn = document.getElementById("installAppBtn");
 
-  if (!installBtn) {
-    console.error("Install button not found!");
-    return;
-  }
-
-  // বাটন সবসময় দৃশ্যমান থাকবে
-  installBtn.style.setProperty("display", "inline-flex", "important");
-  installBtn.style.setProperty("visibility", "visible", "important");
-  installBtn.style.setProperty("opacity", "1", "important");
-
-  let installPrompt = null;
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();
-    installPrompt = event;
-  });
-
-  installBtn.addEventListener("click", async () => {
-    if (installPrompt) {
-      installPrompt.prompt();
-      const result = await installPrompt.userChoice;
-
-      if (result.outcome === "accepted") {
-        installBtn.style.display = "none";
-      }
-
-      installPrompt = null;
-    } else {
-      alert("Chrome-এর Install সুবিধা এখনো প্রস্তুত নয়। Chrome-এর তিন ডট মেনু থেকে Install app নির্বাচন করো।");
-    }
-  });
-
-  window.addEventListener("appinstalled", () => {
-    installBtn.style.display = "none";
-  });
-});
-                          </script>
 </body>
   </html>
 
