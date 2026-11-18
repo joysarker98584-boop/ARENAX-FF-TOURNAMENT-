@@ -1,528 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  updateProfile
-} from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
-
-import {
-  getFirestore,
-  collection,
-  doc,
-  setDoc,
-  addDoc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  updateDoc,
-  runTransaction,
-  writeBatch,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
-
-// FIREBASE CONFIG
-const firebaseConfig = {
-  apiKey: "AIzaSyBKOUb6yOmDKN6h5lnaZuZvFXUAnEc4fT0",
-  authDomain: "arenax-free-fire-tournament.firebaseapp.com",
-  projectId: "arenax-free-fire-tournament",
-  storageBucket: "arenax-free-fire-tournament.firebasestorage.app",
-  messagingSenderId: "462385161284",
-  appId: "1:462385161284:web:158efb7659bb350f6c0811",
-  measurementId: "G-Q0BR3YKYEZ"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-let currentUser = null;
-let isAdmin = false;
-let tournamentCache = [];
-
-const $ = (selector) => document.querySelector(selector);
-
-function money(value) {
-  return Number(value || 0).toLocaleString("en-BD", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-}
-
-function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  })[char]);
-}
-
-let messageTimer;
-
-function showMessage(message, error = false) {
-  const box = $("#message");
-  if (!box) return;
-
-  box.textContent = message;
-  box.classList.remove("hide", "success", "error");
-  box.classList.add(error ? "error" : "success");
-
-  clearTimeout(messageTimer);
-  messageTimer = setTimeout(() => {
-    box.classList.add("hide");
-  }, 4000);
-}
-
-// PAGE NAVIGATION
-function page(name) {
-  document.querySelectorAll(".page").forEach((section) => {
-    section.classList.remove("active");
-  });
-
-  const target = $("#page-" + name);
-  if (target) target.classList.add("active");
-
-  document.querySelectorAll("[data-page]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.page === name);
-  });
-
-  $("#drawer")?.classList.remove("open");
-  $("#scrim")?.classList.remove("show");
-
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-document.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-page]");
-  if (button) {
-    event.preventDefault();
-    page(button.dataset.page);
-  }
-});
-
-$("#menuToggle")?.addEventListener("click", () => {
-  $("#drawer")?.classList.add("open");
-  $("#scrim")?.classList.add("show");
-});
-
-$("#drawerClose")?.addEventListener("click", () => {
-  $("#drawer")?.classList.remove("open");
-  $("#scrim")?.classList.remove("show");
-});
-
-$("#scrim")?.addEventListener("click", () => {
-  $("#drawer")?.classList.remove("open");
-  $("#scrim")?.classList.remove("show");
-});
-
-// AUTH FORM VISIBILITY
-function setAuthFormsVisible(visible) {
-  ["#login", "#signup"].forEach((selector) => {
-    const element = $(selector);
-    if (element) element.style.display = visible ? "" : "none";
-  });
-
-  const loggedInPanel = $("#loggedInPanel");
-  if (loggedInPanel) {
-    loggedInPanel.style.display = visible ? "none" : "block";
-  }
-
-  ["#topLogin", "#topSignup"].forEach((selector) => {
-    const button = $(selector);
-    if (button) button.style.display = visible ? "" : "none";
-  });
-}
-
-// ADMIN CHECK
-async function checkAdmin() {
-  if (!auth.currentUser) return false;
-
-  try {
-    const snap = await getDoc(doc(db, "users", auth.currentUser.uid));
-    isAdmin = snap.exists() && snap.data().role === "admin";
-    return isAdmin;
-  } catch (error) {
-    console.error("Admin check:", error);
-    isAdmin = false;
-    return false;
-  }
-}
-
-// SIGN UP
-$("#signup")?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
-  const form = event.currentTarget;
-  const data = Object.fromEntries(new FormData(form));
-  const name = String(data.name || "").trim();
-  const email = String(data.email || "").trim();
-  const password = String(data.password || "");
-
-  if (!name || !email || password.length < 6) {
-    showMessage("নাম, ইমেল ও কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড দাও।", true);
-    return;
-  }
-
-  try {
-    const result = await createUserWithEmailAndPassword(auth, email, password);
-
-    await updateProfile(result.user, {
-      displayName: name
-    });
-
-    await setDoc(doc(db, "users", result.user.uid), {
-      displayName: name,
-      email,
-      role: "player",
-      createdAt: serverTimestamp()
-    });
-
-    form.reset();
-    showMessage("অ্যাকাউন্ট তৈরি হয়েছে। স্বাগতম!");
-    page("home");
-  } catch (error) {
-    console.error("Signup error:", error);
-
-    const messages = {
-      "auth/email-already-in-use": "এই ইমেল দিয়ে আগে অ্যাকাউন্ট খোলা হয়েছে।",
-      "auth/invalid-email": "সঠিক ইমেল দাও।",
-      "auth/weak-password": "পাসওয়ার্ড আরও শক্তিশালী করো।"
-    };
-
-    showMessage(messages[error.code] || error.message, true);
-  }
-});
-
-// LOGIN
-$("#login")?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
-  const form = event.currentTarget;
-  const data = Object.fromEntries(new FormData(form));
-
-  try {
-    await signInWithEmailAndPassword(
-      auth,
-      String(data.email || "").trim(),
-      String(data.password || "")
-    );
-
-    form.reset();
-    showMessage("Login সফল হয়েছে!");
-    page("home");
-  } catch (error) {
-    console.error("Login error:", error);
-
-    if (
-      error.code === "auth/invalid-credential" ||
-      error.code === "auth/wrong-password" ||
-      error.code === "auth/user-not-found" ||
-      error.code === "auth/invalid-email"
-    ) {
-      showMessage("পাসওয়ার্ড বা ইমেল ভুল", true);
-    } else {
-      showMessage(error.message, true);
-    }
-  }
-});
-
-// LOGOUT
-$("#logout")?.addEventListener("click", async () => {
-  try {
-    await signOut(auth);
-    page("home");
-    showMessage("Logout সফল হয়েছে।");
-  } catch (error) {
-    showMessage(error.message, true);
-  }
-});
-
-// AUTH STATE
-onAuthStateChanged(auth, async (user) => {
-  currentUser = user;
-
-  if (user) {
-    const admin = await checkAdmin();
-
-    setAuthFormsVisible(false);
-
-    if ($("#session")) {
-      $("#session").textContent =
-        `Login করা হয়েছে: ${user.displayName || user.email}`;
-    }
-    if ($("#displayNameInput")) $("#displayNameInput").value = user.displayName || "";
-
-    $("#drawerAdmin")?.classList.toggle("hide", !admin);
-    $("#page-admin")?.classList.toggle("admin-enabled", admin);
-
-    await loadTournaments();
-    await loadPlayerData();
-
-    if (admin) await loadAdminData();
-  } else {
-    isAdmin = false;
-    setAuthFormsVisible(true);
-
-    if ($("#session")) $("#session").textContent = "Login করা হয়নি";
-
-    $("#drawerAdmin")?.classList.add("hide");
-    $("#page-admin")?.classList.remove("admin-enabled");
-
-    if ($("#balance")) $("#balance").textContent = "৳ 0.00";
-
-    if ($("#paymentRows")) {
-      $("#paymentRows").innerHTML =
-        '<tr><td colspan="4">Login করলে দেখা যাবে।</td></tr>';
-    }
-
-    if ($("#myMatchesList")) {
-      $("#myMatchesList").textContent = "ম্যাচ দেখতে Login করো।";
-    }
-
-    await loadTournaments();
-  }
-});
-
-// TOURNAMENT CARD
-
-function formatTournamentDate(value) {
-  if (!value) return "সময় নির্ধারণ করা হয়নি";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "সময় নির্ধারণ করা হয়নি";
-  }
-
-  return date.toLocaleString("bn-BD", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "Asia/Dhaka"
-  });
-}
-
-function tournamentCard(item) {
-  const t = item.data;
-  const id = item.id;
-  const joined = Number(t.joined || 0);
-  const slots = Number(t.slots || 0);
-  const full = slots > 0 && joined >= slots;
-
-  return `
-    <article class="tournament-card">
-
-      <div class="tournament-card-top">
-        <span class="mode-tag">${escapeHTML(t.mode || "Solo")}</span>
-        <span class="live-tag">${full ? "SLOT FULL" : "OPEN"}</span>
-      </div>
-
-      <h3>${escapeHTML(t.title || "ArenaX Tournament")}</h3>
-
-      <p>${escapeHTML(t.description || "Join the battle and win prizes.")}</p>
-
-      <div class="tournament-start-time">
-        <span class="start-time-icon">🕒</span>
-        <div>
-          <small>TOURNAMENT START TIME</small>
-          <strong>${escapeHTML(formatTournamentDate(t.startsAt))}</strong>
-          <span>বাংলাদেশ সময় (BDT)</span>
-        </div>
-      </div>
-
-      <div class="tournament-info">
-        <div>
-          <small>ENTRY FEE</small>
-          <b>৳${money(t.entryFee)}</b>
-        </div>
-
-        <div>
-          <small>PRIZE POOL</small>
-          <b>৳${money(t.prizePool)}</b>
-        </div>
-
-        <div>
-          <small>PLAYERS</small>
-          <b>${joined}/${slots}</b>
-        </div>
-      </div>
-
-      <div class="slot-track">
-        <span style="width:${slots ? Math.min(100, joined / slots * 100) : 0}%"></span>
-      </div>
-
-      <button
-        class="btn primary tournament-join-btn"
-        type="button"
-        ${full ? "disabled" : ""}
-        onclick="window.openJoinForm('${escapeHTML(id)}')">
-        ${full ? "Slot পূর্ণ" : "🏆 Join Tournament"}
-      </button>
-
-    </article>
-  `;
-}
-
-
-// LOAD TOURNAMENTS
-async function loadTournaments() {
-  try {
-    const snap = await getDocs(query(
-      collection(db, "tournaments"),
-      orderBy("createdAt", "desc")
-    ));
-
-    tournamentCache = snap.docs.map((item) => ({
-      id: item.id,
-      data: item.data()
-    }));
-
-    const html = tournamentCache.length
-      ? tournamentCache.map(tournamentCard).join("")
-      : '<div class="panel">এখনো কোনো Tournament Publish হয়নি।</div>';
-
-    if ($("#tournamentList")) $("#tournamentList").innerHTML = html;
-    if ($("#homeTournamentList")) $("#homeTournamentList").innerHTML = html;
-
-    const select = $("#tournamentSelect");
-    if (select) {
-      const previous = select.value;
-
-      select.innerHTML =
-        '<option value="">টুর্নামেন্ট বেছে নাও</option>' +
-        tournamentCache.map(({ id, data }) =>
-          `<option value="${escapeHTML(id)}">${escapeHTML(data.title)} — ৳${money(data.entryFee)}</option>`
-        ).join("");
-
-      if (previous) select.value = previous;
-      updateRegistrationPlayerFields();
-    }
-
-    const adminRoomSelect = $("#adminRoomTournament");
-    if (adminRoomSelect) {
-      const previousRoomTournament = adminRoomSelect.value;
-      adminRoomSelect.innerHTML =
-        '<option value="">টুর্নামেন্ট বেছে নাও</option>' +
-        tournamentCache.map(({ id, data }) =>
-          `<option value="${escapeHTML(id)}">${escapeHTML(data.title || id)}</option>`
-        ).join("");
-      if (previousRoomTournament) adminRoomSelect.value = previousRoomTournament;
-    }
-  } catch (error) {
-    console.error("Tournament load error:", error);
-
-    const errorHTML = '<div class="panel">Tournament লোড হয়নি। আবার চেষ্টা করো।</div>';
-
-    if ($("#tournamentList")) $("#tournamentList").innerHTML = errorHTML;
-    if ($("#homeTournamentList")) $("#homeTournamentList").innerHTML = errorHTML;
-  }
-}
-
-// OPEN JOIN FORM
-window.openJoinForm = (tournamentId) => {
-  if (!currentUser) {
-    showMessage("Tournament Join করতে আগে Login করো।", true);
-    page("account");
-    return;
-  }
-
-  const select = $("#tournamentSelect");
-  if (select) select.value = tournamentId;
-  updateRegistrationPlayerFields();
-
-  page("myMatches");
-  $("#registrationForm")?.scrollIntoView({
-    behavior: "smooth",
-    block: "center"
-  });
-};
-
-// ==========================================
-// MODE-BASED REGISTRATION FIELDS: SOLO=1, DUO=2, SQUAD=4
-function getTournamentMode(tournament) {
-  const mode = String(tournament?.mode || "Solo").trim().toLowerCase();
-  if (mode === "duo") return "Duo";
-  if (mode === "squad") return "Squad";
-  return "Solo";
-}
-
-function updateRegistrationPlayerFields() {
-  const select = $("#tournamentSelect");
-  const container = $("#registrationPlayers");
-  const teamField = $("#teamNameField");
-  const teamInput = $("#registrationTeamName");
-  if (!select || !container) return;
-
-  const selected = tournamentCache.find((item) => item.id === select.value);
-  if (!selected) {
-    container.innerHTML = '<p class="hint">Tournament বেছে নিলে Player তথ্যের ঘর আসবে।</p>';
-    if (teamField) teamField.style.display = "none";
-    if (teamInput) teamInput.value = "";
-    return;
-  }
-
-  const mode = getTournamentMode(selected.data);
-  const count = mode === "Duo" ? 2 : mode === "Squad" ? 4 : 1;
-  container.innerHTML = `
-    <div class="eyebrow" style="grid-column:1/-1">${mode} REGISTRATION — ${count} PLAYER${count > 1 ? "S" : ""}</div>
-    ${Array.from({ length: count }, (_, index) => {
-      const number = index + 1;
-      return `
-        <div class="panel" style="grid-column:1/-1;padding:14px">
-          <b>Player ${number}</b>
-          <label>Player ${number} Game Name
-            <input name="player${number}Name" maxlength="40" placeholder="Player ${number}-এর Free Fire Game Name" required>
-          </label>
-          <label>Player ${number} Free Fire UID
-            <input name="player${number}Uid" inputmode="numeric" pattern="[0-9]{5,20}" maxlength="20" placeholder="Player ${number}-এর UID" required>
-          </label>
-        </div>`;
-    }).join("")}
-  `;
-  if (teamField) teamField.style.display = count > 1 ? "" : "none";
-  if (teamInput && count === 1) teamInput.value = "";
-}
-
-$("#tournamentSelect")?.addEventListener("change", updateRegistrationPlayerFields);
-
-// ARENAX TOURNAMENT JOIN
-// AUTOMATIC REGISTRATION + WALLET ENTRY FEE
-// ==========================================
-
-$("#registrationForm")?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
-  if (!currentUser) {
-    showMessage("আগে Login করো।", true);
-    page("account");
-    return;
-  }
-
-  const form = event.currentTarget;
-  const data = Object.fromEntries(new FormData(form));
-  const tournamentId = String(data.tournamentId || "").trim();
-  const teamName = String(data.teamName || "").trim();
-
-  if (!tournamentId) {
-    showMessage("Tournament বেছে নাও।", true);
-    return;
-  }
-
-  let joinStage = "Starting";
-
-  try {
-    const tournamentRef = doc(db, "tournaments", tournamentId);
-    const registrationId = `${tournamentId}_${currentUser.uid}`;
+```javascript
     const registrationRef = doc(db, "registrations", registrationId);
 
     joinStage = "Tournament Information Read";
@@ -667,11 +143,35 @@ async function loadPlayerData() {
                   `).join("")
                   : `<p>Game Username: ${escapeHTML(r.gameUsername || "-")}</p>
                      <p>UID: ${escapeHTML(r.uid || "-")}</p>`}
-                ${r.status === "approved" && r.roomId ? `
-                  <div class="room-details">
-                    <b>🎮 Match Room Details</b>
-                    <p>Room ID: <strong>${escapeHTML(r.roomId)}</strong></p>
-                    <p>Password: <strong>${escapeHTML(r.roomPassword || "")}</strong></p>
+                ${r.status === "approved" && (r.roomId || r.roomPassword) ? `
+                  <div style="margin-top:16px;padding:16px;border:1px solid rgba(0,229,255,.35);border-radius:16px;background:linear-gradient(135deg,rgba(0,229,255,.10),rgba(15,24,43,.96));box-shadow:0 8px 24px rgba(0,0,0,.22)">
+                    <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px">
+                      <span style="font-size:22px">🎮</span>
+                      <div>
+                        <div style="font-weight:800;font-size:15px;letter-spacing:.5px">MATCH ROOM DETAILS</div>
+                        <small style="color:#7eeeff">শুধু Approved Player-এর জন্য</small>
+                      </div>
+                    </div>
+
+                    ${r.roomId ? `
+                      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;margin-bottom:9px;border-radius:11px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.08)">
+                        <div style="min-width:0">
+                          <small style="display:block;color:#9baec7;font-size:11px;margin-bottom:4px">ROOM ID</small>
+                          <strong style="font-size:17px;color:#fff;letter-spacing:1px;overflow-wrap:anywhere">${escapeHTML(r.roomId)}</strong>
+                        </div>
+                        <button type="button" data-copy-value="${escapeHTML(r.roomId)}" style="flex-shrink:0;border:1px solid rgba(0,229,255,.5);border-radius:9px;background:rgba(0,229,255,.12);color:#5eeeff;padding:9px 12px;font-weight:800;cursor:pointer">▢ COPY</button>
+                      </div>` : ""}
+
+                    ${r.roomPassword ? `
+                      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border-radius:11px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.08)">
+                        <div style="min-width:0">
+                          <small style="display:block;color:#9baec7;font-size:11px;margin-bottom:4px">ROOM PASSWORD</small>
+                          <strong style="font-size:17px;color:#fff;letter-spacing:1px;overflow-wrap:anywhere">${escapeHTML(r.roomPassword)}</strong>
+                        </div>
+                        <button type="button" data-copy-value="${escapeHTML(r.roomPassword)}" style="flex-shrink:0;border:1px solid rgba(0,229,255,.5);border-radius:9px;background:rgba(0,229,255,.12);color:#5eeeff;padding:9px 12px;font-weight:800;cursor:pointer">▢ COPY</button>
+                      </div>` : ""}
+
+                    <p style="margin:12px 0 0;color:#a9bed5;font-size:12px">⚠️ Room ID ও Password অন্য কারও সঙ্গে শেয়ার করবে না।</p>
                   </div>` : ""}
                 <span class="status-tag ${escapeHTML(r.status)}">${escapeHTML(r.status)}</span>
               </div>
@@ -734,7 +234,51 @@ async function loadPlayerData() {
     showMessage("Player Data লোড হয়নি।", true);
   }
 }
-  
+
+// COPY ROOM ID / PASSWORD (delegated so dynamically rendered match cards work)
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-copy-value]");
+  if (!button) return;
+
+  const value = button.getAttribute("data-copy-value") || "";
+  if (!value) return;
+
+  const originalText = button.textContent;
+
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(value);
+    } else {
+      const temporaryInput = document.createElement("textarea");
+      temporaryInput.value = value;
+      temporaryInput.setAttribute("readonly", "");
+      temporaryInput.style.position = "fixed";
+      temporaryInput.style.opacity = "0";
+      document.body.appendChild(temporaryInput);
+      temporaryInput.select();
+      const copied = document.execCommand("copy");
+      temporaryInput.remove();
+      if (!copied) throw new Error("Copy command failed");
+    }
+
+    button.textContent = "✓ COPIED";
+    button.style.background = "rgba(34,197,94,.16)";
+    button.style.borderColor = "rgba(34,197,94,.65)";
+    button.style.color = "#86efac";
+    showMessage("Room তথ্য কপি হয়েছে!");
+
+    setTimeout(() => {
+      button.textContent = originalText;
+      button.style.background = "rgba(0,229,255,.12)";
+      button.style.borderColor = "rgba(0,229,255,.5)";
+      button.style.color = "#5eeeff";
+    }, 1600);
+  } catch (error) {
+    console.error("Room copy error:", error);
+    showMessage("কপি করা যায়নি। হাতে সিলেক্ট করে কপি করো।", true);
+  }
+});
+
 // COPY PAYMENT NUMBER
 $("#copyNumber")?.addEventListener("click", async () => {
   try {
@@ -753,7 +297,7 @@ $("#paymentForm")?.addEventListener("submit", async (event) => {
     showMessage("Deposit করতে আগে Login করো।", true);
     page("account");
     return;
-    }
+  }
 
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
@@ -793,6 +337,7 @@ $("#paymentForm")?.addEventListener("submit", async (event) => {
 
 // WITHDRAW REQUEST
 $("#withdrawForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();$("#withdrawForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!currentUser) {
     showMessage("Withdraw করতে আগে Login করো।", true);
@@ -1176,7 +721,6 @@ window.approveRegistration = async (registrationId) => {
     showMessage(error.message, true);
   }
 };
-
 // ADMIN REJECT REGISTRATION
 window.rejectRegistration = async (registrationId) => {
   if (!(await checkAdmin())) {
@@ -1474,6 +1018,7 @@ document.addEventListener("submit", async (event) => {
     );
   }
 });
+
 // LEADERBOARD
 async function loadLeaderboard() {
   try {
@@ -1510,6 +1055,4 @@ async function loadLeaderboard() {
 // INITIAL PUBLIC DATA
 loadTournaments();
 loadLeaderboard();
-
-
-      
+  
