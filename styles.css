@@ -47,3 +47,24 @@ body:before{
   border-color:rgba(0,220,255,.65) !important;
 }
 .tournament-card,.match-row,.join-panel,.panel,
+/* FIX TOP SPACING - ALL PAGES */
+html,
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.topbar {
+  top: 0;
+}
+
+main.container {
+  margin-top: 0 !important;
+  padding-top: 18px !important;
+}
+
+.page,
+.page.active {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
