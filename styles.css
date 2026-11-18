@@ -20,3 +20,19 @@ body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 .bottom-nav{border-top-color:rgba(0,212,255,.35)}
 @media(max-width:700px){.hero{min-height:0;padding:27px 20px 30px}.hero h1{font-size:clamp(39px,10vw,50px);line-height:1.02}.hero p{font-size:16px;line-height:1.75}.hero-actions{display:grid;grid-template-columns:1fr;align-items:stretch}.hero-actions .btn{width:100%;min-height:54px}.hero-emblem{display:none}.stats{gap:10px}.stat{background:linear-gradient(110deg,rgba(12,34,68,.98),rgba(6,18,40,.98))}.join-panel{padding:17px 14px}.join-heading{align-items:center}.join-heading p{font-size:14px;line-height:1.6}.join-icon{flex:0 0 52px;width:52px;height:52px}.room-details p{gap:8px}.room-details .small-btn{width:auto;min-width:132px}.bottom-nav{background:rgba(3,10,24,.97)}}
 @media(max-width:380px){.hero{padding:23px 16px}.hero h1{font-size:38px}.hero-actions .btn{font-size:14px}.room-details .small-btn{width:100%}}
+/* ARENAX FREE FIRE BACKGROUND */
+
+body {
+    background-image:
+        linear-gradient(
+            rgba(3, 7, 20, 0.45),
+            rgba(3, 7, 20, 0.65)
+        ),
+        url("arenax-battle-bg.png");
+
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-color: #050b19;
+}
