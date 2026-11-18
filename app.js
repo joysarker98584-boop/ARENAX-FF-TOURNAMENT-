@@ -1,14 +1,4 @@
-// ARENAX: FIX TOP BLANK SPACE
-if ("scrollRestoration" in history) {
-  history.scrollRestoration = "manual";
-}
-
-window.addEventListener("pageshow", () => {
-  window.scrollTo(0, 0);
-});
-
-window.addEventListener("load", () => {
-  window.scrollTo(0, 0);import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
 
 import {
   getAuth,
