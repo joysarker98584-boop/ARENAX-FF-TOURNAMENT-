@@ -20,4 +20,30 @@ body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 .bottom-nav{border-top-color:rgba(0,212,255,.35)}
 @media(max-width:700px){.hero{min-height:0;padding:27px 20px 30px}.hero h1{font-size:clamp(39px,10vw,50px);line-height:1.02}.hero p{font-size:16px;line-height:1.75}.hero-actions{display:grid;grid-template-columns:1fr;align-items:stretch}.hero-actions .btn{width:100%;min-height:54px}.hero-emblem{display:none}.stats{gap:10px}.stat{background:linear-gradient(110deg,rgba(12,34,68,.98),rgba(6,18,40,.98))}.join-panel{padding:17px 14px}.join-heading{align-items:center}.join-heading p{font-size:14px;line-height:1.6}.join-icon{flex:0 0 52px;width:52px;height:52px}.room-details p{gap:8px}.room-details .small-btn{width:auto;min-width:132px}.bottom-nav{background:rgba(3,10,24,.97)}}
 @media(max-width:380px){.hero{padding:23px 16px}.hero h1{font-size:38px}.hero-actions .btn{font-size:14px}.room-details .small-btn{width:100%}}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+
+/* ARENAX REAL BATTLEFIELD IMAGE BACKGROUND */
+body{
+  background-color:#020817 !important;
+  background-image:
+    linear-gradient(180deg,rgba(2,8,23,.68) 0%,rgba(3,10,27,.78) 42%,rgba(2,8,22,.94) 100%),
+    url('./arenax-battle-bg.png') !important;
+  background-position:center top !important;
+  background-size:cover !important;
+  background-repeat:no-repeat !important;
+  background-attachment:fixed !important;
+}
+body:before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  opacity:.24;
+  background:linear-gradient(120deg,transparent 0 45%,rgba(0,205,255,.12) 50%,transparent 58%);
+}
+.container,.topbar,.drawer,.bottom-nav,footer{position:relative;z-index:1}
+.hero{
+  background:linear-gradient(105deg,rgba(3,13,32,.88),rgba(5,28,61,.74)),url('./arenax-battle-bg.png') center 36%/cover no-repeat !important;
+  border-color:rgba(0,220,255,.65) !important;
+}
+.tournament-card,.match-row,.join-panel,.panel,
