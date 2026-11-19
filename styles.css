@@ -36,3 +36,41 @@ body {
     background-attachment: fixed;
     background-color: #050b19;
 }
+/* ===== ARENAX REAL FREE FIRE BACKGROUND FIX ===== */
+
+html, body {
+    min-height: 100%;
+}
+
+body {
+    background:
+        linear-gradient(
+            rgba(3, 7, 20, 0.48),
+            rgba(3, 7, 20, 0.58)
+        ),
+        url("./arenax-battle-bg.png") center center / cover no-repeat fixed !important;
+
+    background-color: #050b19 !important;
+}
+
+/* Hero background transparent */
+.hero {
+    background:
+        linear-gradient(
+            110deg,
+            rgba(4, 13, 32, 0.65),
+            rgba(7, 24, 52, 0.55)
+        ) !important;
+}
+
+/* Tournament cards */
+.tournament-card {
+    background: rgba(7, 20, 43, 0.82) !important;
+}
+
+/* Panels */
+.panel,
+.stat,
+.wallet-balance {
+    background: rgba(8, 23, 47, 0.82) !important;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  }
