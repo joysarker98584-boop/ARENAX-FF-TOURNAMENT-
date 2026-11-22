@@ -319,9 +319,14 @@ function tournamentCard(item) {
   const slots = Number(t.slots || 0);
   const full = slots > 0 && joined >= slots;
 
+  const bannerUrl = String(t.bannerUrl || "").trim();
+  const banner = bannerUrl
+    ? `<div class="tournament-banner"><img src="${escapeHTML(bannerUrl)}" alt="${escapeHTML(t.title || "Tournament banner")}" loading="lazy" onerror="this.parentElement.classList.add('banner-fallback');this.remove()"><div class="banner-fallback-content">ARENA<span>X</span><small>FREE FIRE TOURNAMENT</small></div></div>`
+    : `<div class="tournament-banner banner-fallback"><div class="banner-fallback-content">ARENA<span>X</span><small>FREE FIRE TOURNAMENT</small></div></div>`;
+
   return `
     <article class="tournament-card">
-
+      ${banner}
       <div class="tournament-card-top">
         <span class="mode-tag">${escapeHTML(t.mode || "Solo")}</span>
         <span class="live-tag">${full ? "SLOT FULL" : "OPEN"}</span>
@@ -543,7 +548,7 @@ $("#registrationForm")?.addEventListener("submit", async (event) => {
 
     joinStage = "Wallet Ledger Read";
     const ledgerSnap = await getDocs(query(
-      collection(db, "paymentRequests"),
+                     collection(db, "paymentRequests"),
       where("userId", "==", currentUser.uid)
     ));
     const feeRef = doc(collection(db, "paymentRequests"));
@@ -979,7 +984,7 @@ async function loadAdminData() {
             const status = String(r.status || "pending");
             const action = status === "pending"
               ? `<button class="small-btn approve" type="button" onclick="window.approveRegistration('${id}')">Approve</button>
-                 <button class="small-btn reject" type="button" onclick="window.rejectRegistration('${id}')">Reject</button>`
+                       <button class="small-btn reject" type="button" onclick="window.rejectRegistration('${id}')">Reject</button>`
               : `<span class="status-tag ${escapeHTML(status)}">${escapeHTML(status)}</span>`;
 
             return `
@@ -1316,6 +1321,7 @@ document.addEventListener("submit", async (event) => {
       title: String(data.title).trim(),
       mode: String(data.mode || "Solo"),
       description: String(data.description || "").trim(),
+      bannerUrl: String(data.bannerUrl || "").trim(),
       entryFee,
       prizePool,
       slots,
@@ -1529,3 +1535,4 @@ async function loadLeaderboard() {
 // INITIAL PUBLIC DATA
 loadTournaments();
 loadLeaderboard();
+          
