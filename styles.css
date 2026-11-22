@@ -74,3 +74,179 @@ body {
 .wallet-balance {
     background: rgba(8, 23, 47, 0.82) !important;
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   }
+/* ===== ARENAX TOURNAMENT REGISTER CARD UPGRADE ===== */
+
+.tournament-card {
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(0, 210, 255, .35);
+  background:
+    radial-gradient(ellipse at top right, rgba(107, 65, 255, .22), transparent 50%),
+    linear-gradient(145deg, #111d37, #060d1c);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, .35);
+}
+
+.tournament-card:before {
+  height: 4px;
+  background: linear-gradient(90deg, #00d5ff, #385bff, #a03dff);
+}
+
+.tournament-card:after {
+  content: "";
+  position: absolute;
+  right: -50px;
+  top: 70px;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 190, 255, .12);
+  box-shadow:
+    0 0 30px rgba(0, 140, 255, .08),
+    inset 0 0 30px rgba(0, 140, 255, .05);
+  pointer-events: none;
+}
+
+.tournament-card-top {
+  position: relative;
+  z-index: 1;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mode-tag {
+  background: linear-gradient(120deg, #153e72, #262b68);
+  border: 1px solid rgba(0, 220, 255, .2);
+  color: #a9ecff;
+  border-radius: 30px;
+}
+
+.live-tag {
+  background: rgba(15, 184, 110, .13);
+  border: 1px solid rgba(25, 215, 123, .3);
+  color: #62f3b0;
+}
+
+.tournament-card h3 {
+  position: relative;
+  z-index: 1;
+  font-size: 23px;
+  line-height: 1.35;
+  margin: 16px 0 8px;
+  color: #fff;
+}
+
+.tournament-card p {
+  position: relative;
+  z-index: 1;
+  color: #aebfd9;
+  line-height: 1.7;
+}
+
+.tournament-info {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.tournament-info > div {
+  padding: 12px 9px;
+  border: 1px solid rgba(100, 157, 255, .15);
+  border-radius: 13px;
+  background: rgba(3, 12, 29, .6);
+  min-width: 0;
+}
+
+.tournament-info small {
+  color: #91a6c9;
+  font-size: 11px;
+  letter-spacing: .6px;
+}
+
+.tournament-info b {
+  color: #f5f8ff;
+  font-size: 18px;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+
+.slot-track {
+  position: relative;
+  z-index: 1;
+  height: 8px;
+  border-radius: 20px;
+  background: #1b2945;
+  overflow: hidden;
+  margin: 20px 0;
+}
+
+.slot-track span {
+  border-radius: 20px;
+  background: linear-gradient(90deg, #00d9ff, #3974ff, #8a45ff);
+  box-shadow: 0 0 12px rgba(0, 170, 255, .4);
+}
+
+.tournament-join-btn {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  min-height: 54px;
+  border-radius: 15px;
+  font-size: 17px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(105deg, #079fe8, #2568ff 58%, #7044f5);
+  box-shadow: 0 7px 24px rgba(32, 111, 255, .25);
+  border: 1px solid rgba(150, 220, 255, .2);
+}
+
+.tournament-join-btn:active {
+  transform: scale(.98);
+}
+
+/* Registration closed button */
+.tournament-join-btn:disabled {
+  background: #1a263c;
+  color: #8998b3;
+  box-shadow: none;
+  border-color: #34425a;
+  cursor: not-allowed;
+}
+
+/* Small phone screens */
+@media (max-width: 480px) {
+  .tournament-card {
+    padding: 16px;
+    border-radius: 19px;
+  }
+
+  .tournament-card h3 {
+    font-size: 21px;
+  }
+
+  .tournament-info {
+    gap: 7px;
+  }
+
+  .tournament-info > div {
+    padding: 10px 7px;
+  }
+
+  .tournament-info small {
+    font-size: 10px;
+  }
+
+  .tournament-info b {
+    font-size: 16px;
+  }
+
+  .tournament-join-btn {
+    min-height: 52px;
+    font-size: 16px;
+  }
+                    }
+    
