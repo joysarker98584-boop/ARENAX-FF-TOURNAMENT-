@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="bn">
 <head>
@@ -9,6 +10,14 @@
 <link rel="manifest" href="./manifest.json">
 <title>ArenaX — Free Fire Tournament</title>
 <link rel="stylesheet" href="styles.css">
+<style>
+.profile-banner-editor{display:grid;gap:10px;margin:12px 0 18px}
+.profile-banner-preview{width:100%;aspect-ratio:16/5;min-height:105px;max-height:190px;border:1px solid rgba(0,229,255,.28);border-radius:14px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#101a35,#063b55 55%,#24144c);color:#9defff;font-weight:800;letter-spacing:2px;text-align:center}
+.profile-banner-preview img{display:block;width:100%;height:100%;object-fit:cover}
+.profile-banner-preview.has-image{padding:0}
+.profile-banner-editor button{width:max-content;max-width:100%}
+@media(max-width:480px){.profile-banner-preview{aspect-ratio:16/6;min-height:90px;border-radius:10px}}
+</style>
 </head>
 <body>
 
@@ -32,7 +41,6 @@
   <button data-page="myMatches">🎮　আমার ম্যাচ</button>
   <button data-page="wallet">▣　ওয়ালেট</button>
   <button data-page="leaderboard">🥇　লিডারবোর্ড</button>
-  <button data-page="profile">👤　Premium Profile</button>
   <button data-page="account">♙　অ্যাকাউন্ট</button>
   <button data-page="contact">☎　যোগাযোগ</button>
   <button data-page="admin" id="drawerAdmin" class="hide">⚙　Admin Panel</button>
@@ -234,66 +242,6 @@
   </div>
 </section>
 
-
-<!-- ARENAX PREMIUM PROFILE (additive section; existing pages remain unchanged) -->
-<section class="page" id="page-profile">
-  <div class="page-heading axp-heading">
-    <div class="eyebrow">ARENAX PLAYER IDENTITY</div>
-    <h2>Premium Player Profile</h2>
-    <p>তোমার Tournament performance, XP, Rank ও Avatar এক জায়গায়।</p>
-  </div>
-
-  <div class="axp-layout">
-    <section class="axp-card axp-hero-card">
-      <div class="axp-card-glow"></div>
-      <div class="axp-player-top">
-        <div class="axp-avatar-wrap" id="axpMainAvatar"><span>⚔️</span><i>LV.1</i></div>
-        <div class="axp-player-info">
-          <span class="axp-premium-tag">✦ ARENAX PLAYER</span>
-          <h3 id="axpPlayerName">Player</h3>
-          <p>UID: <span id="axpPlayerUid">—</span></p>
-          <strong class="axp-rank-pill" id="axpRankTitle">🥉 Rookie</strong>
-        </div>
-      </div>
-      <div class="axp-xp-head"><span>⚡ XP PROGRESS</span><b id="axpXpText">0 / 500 XP</b></div>
-      <div class="axp-xp-track"><span id="axpXpBar"></span></div>
-      <div class="axp-xp-foot"><span id="axpLevelLabel">LEVEL 1</span><span id="axpNextLabel">500 XP to next level</span></div>
-      <div class="axp-stats">
-        <div><b>🏆</b><strong id="axpWins">0</strong><small>Wins</small></div>
-        <div><b>🎮</b><strong id="axpMatches">0</strong><small>Joined Matches</small></div>
-        <div><b>🔥</b><strong id="axpStreak">0</strong><small>Win Streak</small></div>
-        <div><b>💎</b><strong id="axpCoins">0</strong><small>Wallet (৳)</small></div>
-      </div>
-      <p class="axp-note" id="axpProgressNote">Tournament খেলো, Result Publish হলে XP বাড়বে।</p>
-    </section>
-
-    <section class="axp-card axp-avatar-card">
-      <div class="axp-section-title"><div><span>💠 COLLECTION</span><h3>Avatar Unlock</h3></div><b id="axpUnlockedCount">1 / 10</b></div>
-      <p class="axp-subtitle">Level অনুযায়ী Avatar আনলক হবে। আনলক হওয়া Avatar-এ চাপ দিয়ে Select করো।</p>
-      <div class="axp-avatar-grid" id="axpAvatarGrid"><div class="axp-loading">Profile loading...</div></div>
-    </section>
-  </div>
-
-  <section class="axp-card axp-rank-card">
-    <div class="axp-section-title"><div><span>🏅 YOUR JOURNEY</span><h3>Rank Progression</h3></div><b id="axpCurrentRank">Rookie</b></div>
-    <div class="axp-rank-track" id="axpRankTrack"></div>
-  </section>
-
-  <div class="axp-bottom-grid">
-    <section class="axp-card axp-legend-card">
-      <div class="axp-legend-crown">👑</div>
-      <div><span>ULTIMATE MILESTONE</span><h3>ARENAX Legend</h3><p>Level 10-এ পৌঁছালে Exclusive Legend Avatar ও Title আনলক হবে।</p></div>
-      <b>LV.10</b>
-    </section>
-    <section class="axp-card axp-title-card">
-      <span>🎖️ PROFILE TITLE</span>
-      <h3 id="axpProfileTitle">Rookie</h3>
-      <p>তোমার বর্তমান Level অনুযায়ী Title নির্ধারিত হবে।</p>
-    </section>
-  </div>
-  <p class="axp-disclaimer">XP নিয়ম: Published Result-এর Points × 10, সঙ্গে 1st Place-এর জন্য অতিরিক্ত 100 XP। XP সরাসরি Result থেকে হিসাব হয়।</p>
-</section>
-
 <!-- ACCOUNT -->
 <section class="page" id="page-account">
   <div class="page-heading">
@@ -331,6 +279,13 @@
 
   <div id="loggedInPanel" class="panel form-panel" style="display:none">
     <h3>আমার প্রোফাইল</h3>
+    <div class="profile-banner-editor">
+      <div id="profileBannerPreview" class="profile-banner-preview"><span>ARENAX PROFILE BANNER</span></div>
+      <input id="profileBannerInput" type="file" accept="image/*" hidden>
+      <button class="btn outline" id="profileBannerChoose" type="button"
+        onclick="document.getElementById('profileBannerInput').click()">🖼️ Banner পরিবর্তন</button>
+      <small class="hint">JPG, PNG বা WebP • সর্বোচ্চ ৩ MB</small>
+    </div>
     <form id="profileForm" class="form-grid">
       <label>Display Name
         <input id="displayNameInput" name="displayName" maxlength="40" required>
@@ -468,7 +423,6 @@
   <button data-page="tournaments"><span>🏆</span>টুর্নামেন্ট</button>
   <button data-page="myMatches" class="plus"><span>＋</span>ম্যাচ</button>
   <button data-page="wallet"><span>▣</span>ওয়ালেট</button>
-  <button data-page="profile"><span>👤</span>প্রোফাইল</button>
   <button data-page="account"><span>♙</span>অ্যাকাউন্ট</button>
 </nav>
 
@@ -539,9 +493,9 @@
 })();
 </script>
 
-<script type="module" src="./app.js?v=20261123-profile1"></script>
+<script type="module" src="./app.js?v=20261123-banner1"></script>
 
 </body>
                         </html>
 
-  
+        
