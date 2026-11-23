@@ -314,9 +314,19 @@
     <form id="createTournament" class="form-grid">
       <label>টুর্নামেন্টের নাম<input name="title" maxlength="100" required></label>
       <label>মোড
-        <select name="mode"><option>Solo</option><option>Duo</option><option>Squad</option></select>
+        <select name="mode">
+          <option>Solo</option>
+          <option>Duo</option>
+          <option>Squad</option>
+        </select>
       </label>
       <label>বর্ণনা<input name="description" maxlength="400"></label>
+
+      <!-- FIXED: Banner URL field moved inside the tournament form -->
+      <label>Tournament Banner Image URL
+        <input name="bannerUrl" type="url" maxlength="2000" placeholder="https://example.com/banner.jpg">
+      </label>
+
       <label>Entry Fee (৳)<input name="entryFee" type="number" min="0" required></label>
       <label>Prize Pool (৳)<input name="prizePool" type="number" min="0" required></label>
       <label>সর্বোচ্চ Slot<input name="slots" type="number" min="1" max="500" value="48" required></label>
@@ -324,16 +334,16 @@
       <button class="btn primary" type="submit">টুর্নামেন্ট Publish</button>
     </form>
   </div>
-<!-- CREATE TOURNAMENT form: add this label after the Description field -->
-<label>Tournament Banner Image URL
-  <input name="bannerUrl" type="url" placeholder="https://example.com/banner.jpg">
-</label>
-  
+
   <div class="panel form-panel">
     <h3>ম্যাচ Room ID ও Password সেট করো</h3>
     <p>এগুলো শুধু ওই টুর্নামেন্টে Approved প্লেয়াররা তাদের My Matches অংশে দেখতে পাবে।</p>
     <form id="roomDetailsForm" class="form-grid">
-      <label>টুর্নামেন্ট<select name="tournamentId" id="adminRoomTournament" required><option value="">টুর্নামেন্ট বেছে নাও</option></select></label>
+      <label>টুর্নামেন্ট
+        <select name="tournamentId" id="adminRoomTournament" required>
+          <option value="">টুর্নামেন্ট বেছে নাও</option>
+        </select>
+      </label>
       <label>Room ID<input name="roomId" maxlength="80" required></label>
       <label>Room Password<input name="roomPassword" maxlength="80" required></label>
       <button class="btn primary" type="submit">Room Details পাঠাও</button>
@@ -365,13 +375,13 @@
     <div class="table-scroll">
       <table>
         <thead>
-  <tr>
-    <th>প্লেয়ার</th>
-    <th>Game Username</th>
-    <th>Game UID</th>
-    <th>Player userId</th>
-    <th>অ্যাকশন</th>
-  </tr>
+          <tr>
+            <th>প্লেয়ার</th>
+            <th>Game Username</th>
+            <th>Game UID</th>
+            <th>Player userId</th>
+            <th>অ্যাকশন</th>
+          </tr>
         </thead>
         <tbody id="adminRegistrations"><tr><td colspan="5">Admin access প্রয়োজন।</td></tr></tbody>
       </table>
@@ -402,7 +412,6 @@
 </nav>
 
 <footer>© 2026 ArenaX • Independent community tournament platform. Not affiliated with Garena / Free Fire.</footer>
-
 
 <script>
 (() => {
@@ -467,15 +476,10 @@
     });
   }
 })();
-                                  </script>
-  
+</script>
 
 <script type="module" src="./app.js?v=20261113-2"></script>
 
 </body>
-  </html>
-
-
-
-
+                        </html>
   
