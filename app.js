@@ -404,9 +404,12 @@ function formatTournamentDate(value) {
   const slots = Number(t.slots || 0);
   const full = slots > 0 && joined >= slots;
 
-  const bannerUrl = String(t.bannerUrl || "").trim();
+  const originalBannerUrl = String(t.bannerUrl || "").trim();
+  // Normalize i.ibb.co.com links to the standard i.ibb.co host first.
+  const bannerUrl = originalBannerUrl.replace(/^https?:\/\/i\.ibb\.co\.com\//i, "https://i.ibb.co/");
+  const alternateBannerUrl = originalBannerUrl !== bannerUrl ? originalBannerUrl : "";
   const banner = bannerUrl
-    ? `<div class="tournament-banner has-image"><img src="${escapeHTML(bannerUrl)}" alt="${escapeHTML(t.title || "Tournament banner")}" loading="lazy" onerror="this.closest('.tournament-banner')?.classList.add('banner-fallback');this.remove()"><div class="banner-fallback-content">ARENA<span>X</span><small>FREE FIRE TOURNAMENT</small></div></div>`
+    ? `<div class="tournament-banner has-image"><img src="${escapeHTML(bannerUrl)}" data-alt-banner-url="${escapeHTML(alternateBannerUrl)}" alt="${escapeHTML(t.title || "Tournament banner")}" loading="lazy" onerror="if(this.dataset.altBannerUrl){this.src=this.dataset.altBannerUrl;this.dataset.altBannerUrl='';}else{const box=this.closest('.tournament-banner');box?.classList.remove('has-image');box?.classList.add('banner-fallback');this.remove();}"><div class="banner-fallback-content">ARENA<span>X</span><small>FREE FIRE TOURNAMENT</small></div></div>`
     : `<div class="tournament-banner banner-fallback"><div class="banner-fallback-content">ARENA<span>X</span><small>FREE FIRE TOURNAMENT</small></div></div>`;
 
   return `
@@ -448,7 +451,7 @@ function formatTournamentDate(value) {
       </div>
 
       <div class="slot-track">
-        <span style="width:${slots ? Math.min(100, joined / slots * 100) : 0}%"></span>
+              <span style="width:${slots ? Math.min(100, joined / slots * 100) : 0}%"></span>
       </div>
 
       <button
@@ -1354,7 +1357,7 @@ window.approveRegistration = async (registrationId) => {
   try {
     const registrationRef = doc(db, "registrations", registrationId);
     const registrationSnap = await getDoc(registrationRef);
-
+                        
     if (!registrationSnap.exists()) {
       throw new Error("Registration পাওয়া যায়নি।");
     }
@@ -1806,3 +1809,4 @@ async function loadLeaderboard() {
 // INITIAL PUBLIC DATA
 loadTournaments();
 loadLeaderboard();
+      
