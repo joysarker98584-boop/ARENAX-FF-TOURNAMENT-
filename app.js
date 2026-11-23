@@ -451,7 +451,7 @@ function formatTournamentDate(value) {
       </div>
 
       <div class="slot-track">
-              <span style="width:${slots ? Math.min(100, joined / slots * 100) : 0}%"></span>
+                  <span style="width:${slots ? Math.min(100, joined / slots * 100) : 0}%"></span>
       </div>
 
       <button
@@ -904,7 +904,7 @@ async function loadPlayerData() {
 
       $("#paymentRows").innerHTML = payments.length
         ? payments.map((p) => `
-            <tr>
+              <tr>
               <td>${escapeHTML(p.type)}</td>
               <td>৳${money(p.amount)}</td>
               <td>${escapeHTML(p.method || "Wallet")}</td>
@@ -1357,7 +1357,7 @@ window.approveRegistration = async (registrationId) => {
   try {
     const registrationRef = doc(db, "registrations", registrationId);
     const registrationSnap = await getDoc(registrationRef);
-                        
+                          
     if (!registrationSnap.exists()) {
       throw new Error("Registration পাওয়া যায়নি।");
     }
@@ -1809,4 +1809,5 @@ async function loadLeaderboard() {
 // INITIAL PUBLIC DATA
 loadTournaments();
 loadLeaderboard();
-      
+
+  
