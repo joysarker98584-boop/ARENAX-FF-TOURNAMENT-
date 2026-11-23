@@ -155,6 +155,10 @@ function showMessage(message, error = false) {
 
 // PAGE NAVIGATION
 function page(name) {
+  if (name === "profile" && !currentUser) {
+    name = "account";
+    showMessage("Premium Profile দেখতে আগে Login করো।", true);
+  }
   document.querySelectorAll(".page").forEach((section) => {
     section.classList.remove("active");
   });
@@ -479,7 +483,6 @@ async function loadTournaments() {
       id: item.id,
       data: item.data()
     }));
-
     const html = tournamentCache.length
       ? tournamentCache.map(tournamentCard).join("")
       : '<div class="panel">এখনো কোনো Tournament Publish হয়নি।</div>';
@@ -917,11 +920,133 @@ async function loadPlayerData() {
           `).join("")
         : '<tr><td colspan="4">কোনো লেনদেন নেই।</td></tr>';
     }
+
+    await loadArenaxPremiumProfile();
   } catch (error) {
     console.error("Player data error:", error);
     showMessage("Player Data লোড হয়নি।", true);
   }
 }
+
+
+// ===== ARENAX PREMIUM PROFILE =====
+// Read-only performance summary: XP is derived from published results,
+// registrations and wallet ledger. No existing tournament/payment data is changed.
+const AXP_RANKS = [
+  { name: "Rookie", icon: "🥉", avatar: "🛡️" },
+  { name: "Bronze", icon: "🥉", avatar: "🗡️" },
+  { name: "Silver", icon: "🥈", avatar: "🐺" },
+  { name: "Gold", icon: "🥇", avatar: "🦅" },
+  { name: "Platinum", icon: "💠", avatar: "🐉" },
+  { name: "Diamond", icon: "💎", avatar: "⚡" },
+  { name: "Heroic", icon: "🔥", avatar: "🔥" },
+  { name: "Master", icon: "👑", avatar: "🌌" },
+  { name: "Grandmaster", icon: "🏆", avatar: "🐲" },
+  { name: "ARENAX Legend", icon: "👑", avatar: "🌟" }
+];
+
+function resetArenaxPremiumProfile() {
+  const defaults = {
+    axpPlayerName: "Login Required", axpPlayerUid: "—", axpRankTitle: "🥉 Rookie",
+    axpXpText: "0 / 500 XP", axpLevelLabel: "LEVEL 1", axpNextLabel: "500 XP to next level",
+    axpWins: "0", axpMatches: "0", axpStreak: "0", axpCoins: "0",
+    axpUnlockedCount: "1 / 10", axpCurrentRank: "Rookie", axpProfileTitle: "Rookie"
+  };
+  Object.entries(defaults).forEach(([id, value]) => { if ($(`#${id}`)) $(`#${id}`).textContent = value; });
+  if ($("#axpXpBar")) $("#axpXpBar").style.width = "0%";
+  if ($("#axpMainAvatar")) $("#axpMainAvatar").innerHTML = '<span>⚔️</span><i>LV.1</i>';
+  if ($("#axpAvatarGrid")) $("#axpAvatarGrid").innerHTML = '<div class="axp-loading">Login করলে Avatar Collection দেখা যাবে।</div>';
+  if ($("#axpRankTrack")) $("#axpRankTrack").innerHTML = "";
+}
+
+async function loadArenaxPremiumProfile() {
+  if (!currentUser) { resetArenaxPremiumProfile(); return; }
+  try {
+    const [userSnap, resultsSnap, registrationsSnap, paymentsSnap] = await Promise.all([
+      getDoc(doc(db, "users", currentUser.uid)),
+      getDocs(query(collection(db, "results"), where("userId", "==", currentUser.uid))),
+      getDocs(query(collection(db, "registrations"), where("userId", "==", currentUser.uid))),
+      getDocs(query(collection(db, "paymentRequests"), where("userId", "==", currentUser.uid)))
+        ]);
+
+    const userData = userSnap.exists() ? userSnap.data() : {};
+    const results = resultsSnap.docs.map((item) => ({ id: item.id, ...item.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    const wins = results.filter((r) => Number(r.placement) === 1).length;
+    const points = results.reduce((sum, r) => sum + Math.max(0, Number(r.points) || 0), 0);
+    const xp = Math.max(0, Math.floor(points * 10 + wins * 100));
+    const level = Math.min(10, Math.floor(xp / 500) + 1);
+    const progressXp = level >= 10 ? 500 : xp - ((level - 1) * 500);
+    const remainingXp = level >= 10 ? 0 : 500 - progressXp;
+    const streak = (() => { let count = 0; for (const r of results) { if (Number(r.placement) === 1) count++; else break; } return count; })();
+
+    let wallet = 0;
+    paymentsSnap.forEach((item) => {
+      const payment = item.data();
+      if (payment.status === "approved") {
+        if (payment.type === "deposit" || payment.type === "tournament_prize") wallet += Number(payment.amount || 0);
+        if (payment.type === "tournament_fee" || payment.type === "withdraw") wallet -= Number(payment.amount || 0);
+      } else if (payment.type === "withdraw" && payment.status === "pending") {
+        wallet -= Number(payment.amount || 0);
+      }
+    });
+
+    const selectedLevelRaw = Number(userData.selectedAvatarLevel || 1);
+    const selectedLevel = Number.isInteger(selectedLevelRaw) && selectedLevelRaw >= 1 && selectedLevelRaw <= level ? selectedLevelRaw : 1;
+    const rank = AXP_RANKS[level - 1];
+    const name = currentUser.displayName || userData.displayName || currentUser.email?.split("@")[0] || "Player";
+    const uid = currentUser.uid;
+
+    if ($("#axpPlayerName")) $("#axpPlayerName").textContent = name;
+    if ($("#axpPlayerUid")) $("#axpPlayerUid").textContent = uid.slice(0, 8) + "…";
+    if ($("#axpRankTitle")) $("#axpRankTitle").textContent = `${rank.icon} ${rank.name}`;
+    if ($("#axpXpText")) $("#axpXpText").textContent = `${progressXp.toLocaleString("en-US")} / 500 XP`;
+    if ($("#axpXpBar")) $("#axpXpBar").style.width = `${Math.min(100, progressXp / 5)}%`;
+    if ($("#axpLevelLabel")) $("#axpLevelLabel").textContent = `LEVEL ${level}`;
+    if ($("#axpNextLabel")) $("#axpNextLabel").textContent = level >= 10 ? "MAX LEVEL ACHIEVED" : `${remainingXp.toLocaleString("en-US")} XP to next level`;
+    if ($("#axpWins")) $("#axpWins").textContent = String(wins);
+    if ($("#axpMatches")) $("#axpMatches").textContent = String(registrationsSnap.size);
+    if ($("#axpStreak")) $("#axpStreak").textContent = String(streak);
+    if ($("#axpCoins")) $("#axpCoins").textContent = Math.max(0, wallet).toLocaleString("en-US", { maximumFractionDigits: 0 });
+    if ($("#axpUnlockedCount")) $("#axpUnlockedCount").textContent = `${level} / 10 UNLOCKED`;
+    if ($("#axpCurrentRank")) $("#axpCurrentRank").textContent = rank.name;
+    if ($("#axpProfileTitle")) $("#axpProfileTitle").textContent = rank.name;
+    if ($("#axpProgressNote")) $("#axpProgressNote").textContent = level >= 10 ? "🔥 তুমি ARENAX Legend! সব Avatar আনলক হয়েছে।" : `আর ${remainingXp} XP অর্জন করলেই ${AXP_RANKS[level].name} Rank আনলক হবে।`;
+    if ($("#axpMainAvatar")) $("#axpMainAvatar").innerHTML = `<span>${AXP_RANKS[selectedLevel - 1].avatar}</span><i>LV.${selectedLevel}</i>`;
+
+    if ($("#axpAvatarGrid")) {
+      $("#axpAvatarGrid").innerHTML = AXP_RANKS.map((item, index) => {
+        const avatarLevel = index + 1;
+        const unlocked = avatarLevel <= level;
+        const selected = avatarLevel === selectedLevel;
+        return `<button type="button" class="axp-avatar-tile ${unlocked ? "is-unlocked" : "is-locked"} ${selected ? "is-selected" : ""}" data-avatar-level="${avatarLevel}" ${unlocked ? "" : "disabled"} aria-label="${escapeHTML(item.name)} Avatar, Level ${avatarLevel}">
+          <span class="axp-avatar-art">${item.avatar}</span><b>LV.${avatarLevel}</b><small>${escapeHTML(item.name)}</small><i>${selected ? "✓ EQUIPPED" : unlocked ? "✓ UNLOCKED" : "🔒 LOCKED"}</i>
+        </button>`;
+      }).join("");
+    }
+    if ($("#axpRankTrack")) {
+      $("#axpRankTrack").innerHTML = AXP_RANKS.map((item, index) => `<div class="axp-rank-step ${index + 1 <= level ? "is-reached" : ""} ${index + 1 === level ? "is-current" : ""}"><span>${item.icon}</span><b>${index + 1}</b><small>${escapeHTML(item.name)}</small></div>`).join("");
+    }
+  } catch (error) {
+    console.error("ARENAX Premium Profile error:", error);
+    if ($("#axpAvatarGrid")) $("#axpAvatarGrid").innerHTML = '<div class="axp-loading">Profile data লোড হয়নি। আবার চেষ্টা করো।</div>';
+  }
+}
+
+$("#axpAvatarGrid")?.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-avatar-level]");
+  if (!button || !currentUser || button.disabled) return;
+  const selectedAvatarLevel = Number(button.dataset.avatarLevel);
+  try {
+    await setDoc(doc(db, "users", currentUser.uid), { selectedAvatarLevel, avatarUpdatedAt: serverTimestamp() }, { merge: true });
+    showMessage(`Level ${selectedAvatarLevel} Avatar Equipped হয়েছে!`);
+    await loadArenaxPremiumProfile();
+  } catch (error) {
+    console.error("Avatar selection error:", error);
+    showMessage("Avatar Select করা যায়নি। Firestore Rules চেক করো।", true);
+  }
+});
+
 
 // COPY MATCH ROOM ID / PASSWORD
 $("#myMatchesList")?.addEventListener("click", async (event) => {
@@ -1327,7 +1452,7 @@ window.reviewPayment = async (paymentId, status) => {
 
       tx.update(ref, {
         status,
-        reviewedAt: serverTimestamp(),
+                reviewedAt: serverTimestamp(),
         reviewedBy: auth.currentUser.uid
       });
     });
@@ -1810,4 +1935,5 @@ async function loadLeaderboard() {
 loadTournaments();
 loadLeaderboard();
 
-  
+
+                
