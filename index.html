@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.json">
 <title>ArenaX — Free Fire Tournament</title>
-<link rel="stylesheet" href="styles.css?v=20261124-profile-fix-2">
+<link rel="stylesheet" href="styles.css?v=20261124-profile-only-final-1">
 </head>
 <body>
 
@@ -20,8 +20,8 @@
     <small>FREE FIRE TOURNAMENT</small>
   </a>
   <div class="top-actions">
-    <button class="btn outline" id="topLogin" data-page="account">লগইন</button>
-    <button class="btn primary" id="topSignup" data-page="account">সাইন আপ</button>
+    <button class="btn outline" id="topLogin" data-page="profile">লগইন</button>
+    <button class="btn primary" id="topSignup" data-page="profile">সাইন আপ</button>
   </div>
 </header>
 
@@ -34,7 +34,7 @@
   <button data-page="wallet">▣　ওয়ালেট</button>
   <button data-page="profile">👑　প্রিমিয়াম প্রোফাইল</button>
   <button data-page="leaderboard">🥇　লিডারবোর্ড</button>
-  <button data-page="account">♙　অ্যাকাউন্ট</button>
+  <button data-page="profile">♙　প্রোফাইল ও অ্যাকাউন্ট</button>
   <button data-page="contact">☎　যোগাযোগ</button>
   <button data-page="admin" id="drawerAdmin" class="hide">⚙　Admin Panel</button>
 </aside>
@@ -52,7 +52,7 @@
       <p>Solo, Duo ও Squad ম্যাচে অংশ নাও। নিজের স্কিল দেখাও, জিতো পুরস্কার।</p>
       <div class="hero-actions">
         <button class="btn primary" data-page="tournaments">টুর্নামেন্ট দেখো →</button>
-        <button class="btn outline" data-page="account">এখনই Join করো</button>
+        <button class="btn outline" data-page="profile">এখনই Join করো</button>
         <button class="btn outline" id="installAppBtn" type="button">📲 Install ARENAX</button>
       </div>
     </div>
@@ -236,96 +236,51 @@
 </section>
 
 
-<!-- PREMIUM PLAYER PROFILE -->
+<!-- ARENAX PREMIUM PROFILE + ACCOUNT (single page) -->
 <section class="page" id="page-profile">
-  <div class="page-heading ax-profile-heading">
-    <div class="eyebrow">ARENAX ELITE PLAYER CLUB</div>
-    <h2>Premium Player Profile</h2>
-    <p>তোমার পরিচয়, তোমার স্টাইল — পছন্দের আনলক করা ব্যানার বেছে নাও।</p>
-  </div>
-
-  <div class="ax-profile-shell">
-    <div class="ax-profile-banner ax-banner-rookie" id="premiumProfileBanner">
-      <div class="ax-banner-copy">
-        <small>ARENAX • PLAYER IDENTITY</small>
-        <strong>Rookie Pulse</strong>
-        <span>STARTER PROFILE BANNER</span>
+  <div class="ax-dashboard">
+    <section class="ax-player-hero" id="premiumProfileBanner">
+      <div class="ax-hero-art" aria-hidden="true"><span class="ax-hero-sigil">AX</span><span class="ax-hero-sparks">✦　✧　✦</span></div>
+      <div class="ax-hero-avatar"><span>♛</span><b id="profileLevelValue">LV. 1</b></div>
+      <div class="ax-hero-copy">
+        <span class="ax-kicker">ARENAX ELITE PLAYER</span>
+        <h2 id="profilePlayerName">ARENAX Player <i>✓</i></h2>
+        <p id="profilePlayerEmail">@player • Free Fire Competitor</p>
+        <div class="ax-motto">♛ <span>PLAY • WIN • BE LEGEND</span></div>
+        <div class="ax-xp-head"><b id="profileLevelLabel">Level 1</b><span id="profileNextLevel">Next: Level 2</span></div>
+        <div class="ax-xp-track"><span id="profileXpBar"></span></div>
+        <div class="ax-xp-foot"><span id="profileXpText">0 / 1000 XP</span><span>LEVEL PROGRESS</span></div>
       </div>
-      <div class="ax-banner-emblem">⚡</div>
-      <div class="ax-banner-level">LEVEL 1</div>
-    </div>
+      <div class="ax-hero-brand"><strong>ARENAX</strong><small>CHAMPIONS<br>ARE MADE HERE</small></div>
+    </section>
 
-    <div class="ax-profile-identity">
-      <div class="ax-profile-avatar">♛</div>
-      <div class="ax-profile-name">
-        <span class="ax-profile-kicker">OFFICIAL PLAYER</span>
-        <h3 id="profilePlayerName">ARENAX Player</h3>
-        <p id="profilePlayerEmail"></p>
+    <section class="ax-profile-stats" aria-label="Player statistics">
+      <article><span>🏆</span><small>Total Matches</small><b id="profileMatches">0</b></article>
+      <article><span>👑</span><small>Total Wins</small><b id="profileWins">0</b></article>
+      <article><span>🎯</span><small>Win Rate</small><b id="profileWinRate">0%</b></article>
+      <article><span>💰</span><small>Wallet Balance</small><b id="profileWallet">৳ 0.00</b></article>
+    </section>
+
+    <section class="ax-collection-panel">
+      <div class="ax-panel-heading"><div><span class="ax-kicker">EXCLUSIVE COLLECTION</span><h3>▣　Banner Collection</h3><p>তোমার আনলক করা ব্যানার থেকে পছন্দেরটি বেছে নাও।</p></div><span class="ax-total-banners">10 DESIGNS</span></div>
+      <div class="ax-banner-grid" id="profileBannerGrid"><div class="ax-banner-loading">Premium Banner Collection লোড হচ্ছে...</div></div>
+    </section>
+
+    <section class="ax-premium-strip">
+      <div class="ax-premium-crown">♛</div><div class="ax-premium-text"><b>Premium Player</b><span>তুমি ARENAX-এর একজন বিশেষ খেলোয়াড়!</span></div>
+      <ul><li>✓ Premium Avatar Frame</li><li>✓ Exclusive Banners</li><li>✓ Player Features</li></ul>
+      <strong id="profilePremiumLevel">★ LEVEL 1</strong>
+    </section>
+
+    <section class="ax-account-panel">
+      <div class="ax-panel-heading"><div><span class="ax-kicker">PLAYER ACCOUNT</span><h3>Account & Settings</h3><p>প্রোফাইল ও অ্যাকাউন্ট একই জায়গা থেকে পরিচালনা করো।</p></div></div>
+      <div class="ax-account-forms">
+        <form id="signup" class="panel form-panel"><h3>নতুন অ্যাকাউন্ট</h3><label>তোমার নাম<input name="name" maxlength="40" required></label><label>Email<input name="email" type="email" required></label><label>Password (কমপক্ষে ৬ অক্ষর)<input name="password" type="password" minlength="6" required></label><button class="btn primary" type="submit">সাইন আপ</button></form>
+        <form id="login" class="panel form-panel"><h3>Welcome Back</h3><label>Email<input name="email" type="email" required></label><label>Password<input name="password" type="password" required></label><button class="btn primary" type="submit">লগইন</button></form>
       </div>
-      <span class="ax-level-chip" id="profileLevelValue">LVL 1</span>
-    </div>
-
-    <div class="ax-profile-section-head">
-      <div>
-        <span class="eyebrow">EXCLUSIVE COLLECTION</span>
-        <h3>Choose Your Banner</h3>
-        <p>লেভেল বাড়ার সঙ্গে সঙ্গে নতুন প্রিমিয়াম ব্যানার আনলক হবে।</p>
-      </div>
-      <span class="ax-collection-count">10 DESIGNS</span>
-    </div>
-
-    <div class="ax-banner-grid" id="profileBannerGrid">
-      <div class="ax-banner-loading">Premium Banner Collection লোড হচ্ছে...</div>
-    </div>
-    <div class="ax-profile-footnote">🔒 Locked ব্যানার নির্দিষ্ট Level-এ আনলক হবে। নির্বাচিত ব্যানার Firestore-এ সেভ থাকবে।</div>
-  </div>
-</section>
-
-<!-- ACCOUNT -->
-<section class="page" id="page-account">
-  <div class="page-heading">
-    <div class="eyebrow">PLAYER ACCESS</div>
-    <h2>অ্যাকাউন্ট</h2>
-    <p>নতুন অ্যাকাউন্ট খোলো অথবা Login করো।</p>
-  </div>
-
-  <div class="cols">
-    <form id="signup" class="panel form-panel">
-      <h3>নতুন অ্যাকাউন্ট</h3>
-      <label>তোমার নাম
-        <input name="name" maxlength="40" required>
-      </label>
-      <label>Email
-        <input name="email" type="email" required>
-      </label>
-      <label>Password (কমপক্ষে ৬ অক্ষর)
-        <input name="password" type="password" minlength="6" required>
-      </label>
-      <button class="btn primary" type="submit">সাইন আপ</button>
-    </form>
-
-    <form id="login" class="panel form-panel">
-      <h3>Welcome Back</h3>
-      <label>Email
-        <input name="email" type="email" required>
-      </label>
-      <label>Password
-        <input name="password" type="password" required>
-      </label>
-      <button class="btn primary" type="submit">লগইন</button>
-    </form>
-  </div>
-
-  <div id="loggedInPanel" class="panel form-panel" style="display:none">
-    <h3>অ্যাকাউন্ট সেটিংস</h3>
-    <form id="profileForm" class="form-grid">
-      <label>Display Name
-        <input id="displayNameInput" name="displayName" maxlength="40" required>
-      </label>
-      <button class="btn primary" type="submit">প্রোফাইল আপডেট</button>
-    </form>
-    <p id="session" class="hint">Logged in</p>
-    <button class="btn outline" type="button" id="logout">লগআউট</button>
+      <div id="loggedInPanel" class="panel form-panel" style="display:none"><h3>অ্যাকাউন্ট সেটিংস</h3><form id="profileForm" class="form-grid"><label>Display Name<input id="displayNameInput" name="displayName" maxlength="40" required></label><button class="btn primary" type="submit">প্রোফাইল আপডেট</button></form><p id="session" class="hint">Logged in</p><button class="btn outline" type="button" id="logout">লগআউট</button></div>
+    </section>
+    <p class="ax-profile-footnote">🔒 Locked ব্যানার নির্দিষ্ট Level-এ আনলক হবে। নির্বাচিত ব্যানার তোমার অ্যাকাউন্টে সেভ থাকবে।</p>
   </div>
 </section>
 
@@ -456,7 +411,7 @@
   <button data-page="myMatches" class="plus"><span>＋</span>ম্যাচ</button>
   <button data-page="wallet"><span>▣</span>ওয়ালেট</button>
   <button data-page="profile"><span>👑</span>প্রোফাইল</button>
-  <button data-page="account"><span>♙</span>অ্যাকাউন্ট</button>
+  <button data-page="contact"><span>🎧</span>সাপোর্ট</button>
 </nav>
 
 <footer>© 2026 ArenaX • Independent community tournament platform. Not affiliated with Garena / Free Fire.</footer>
@@ -526,9 +481,10 @@
 })();
 </script>
 
-<script type="module" src="./app.js?v=20261124-premium-profile"></script>
+<script type="module" src="./app.js?v=20261124-profile-only-final-1"></script>
 
 </body>
                         </html>
 
-        
+
+  
