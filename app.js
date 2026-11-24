@@ -352,54 +352,62 @@ function renderProfileBannerCollection(data = {}) {
 
   const level = getProfileLevel(data);
   const selectedId = PROFILE_BANNERS.some(b => b.id === data.selectedProfileBanner)
-    ? data.selectedProfileBanner
-    : "rookie";
+    ? data.selectedProfileBanner : "rookie";
   const selected = PROFILE_BANNERS.find(b => b.id === selectedId) || PROFILE_BANNERS[0];
 
-  hero.className = `ax-profile-banner ${selected.className}`;
-  hero.innerHTML = `
-    <div class="ax-banner-noise"></div>
-    <div class="ax-banner-copy">
-      <small>ARENAX • PLAYER IDENTITY</small>
-      <strong>${escapeHTML(selected.name)}</strong>
-      <span>${escapeHTML(selected.tier)} PROFILE BANNER</span>
-    </div>
-    <div class="ax-banner-emblem" aria-hidden="true">${selected.art}</div>
-    <div class="ax-banner-level">LEVEL ${level}</div>
-  `;
+  hero.className = `ax-player-hero ${selected.className}`;
+  $("#profileLevelValue") && ($("#profileLevelValue").textContent = `LV. ${level}`);
+  $("#profileLevelLabel") && ($("#profileLevelLabel").textContent = `Level ${level}`);
+  $("#profileNextLevel") && ($("#profileNextLevel").textContent = level >= 10 ? "MAX LEVEL" : `Next: Level ${level + 1}`);
+  const xp = Math.max(0, Number(data.xp || data.experience || 0));
+  const xpPerLevel = 1000;
+  const progressXp = Math.min(xpPerLevel, xp % xpPerLevel);
+  const progress = level >= 10 ? 100 : Math.round((progressXp / xpPerLevel) * 100);
+  if ($("#profileXpBar")) $("#profileXpBar").style.width = `${progress}%`;
+  if ($("#profileXpText")) $("#profileXpText").textContent = level >= 10 ? "MAX LEVEL REACHED" : `${progressXp} / ${xpPerLevel} XP`;
+  if ($("#profilePremiumLevel")) $("#profilePremiumLevel").textContent = `★ LEVEL ${level}`;
+
+  const playerName = currentUser?.displayName || data.displayName || "ARENAX Player";
+  if ($("#profilePlayerName")) $("#profilePlayerName").innerHTML = `${escapeHTML(playerName)} <i>✓</i>`;
+  if ($("#profilePlayerEmail")) $("#profilePlayerEmail").textContent = currentUser?.email || "@player • Free Fire Competitor";
+
+  const wins = Math.max(0, Number(data.totalWins ?? data.wins ?? 0));
+  const matches = Math.max(0, Number(data.totalMatches ?? data.matches ?? 0));
+  const rate = matches ? (wins / matches * 100) : 0;
+  if ($("#profileWins")) $("#profileWins").textContent = String(wins);
+  if ($("#profileMatches")) $("#profileMatches").textContent = String(matches);
+  if ($("#profileWinRate")) $("#profileWinRate").textContent = `${rate.toFixed(1)}%`;
+  if ($("#profileWallet")) $("#profileWallet").textContent = $("#balance")?.textContent?.trim() || "৳ 0.00";
 
   grid.innerHTML = PROFILE_BANNERS.map(banner => {
     const unlocked = level >= banner.level;
     const isSelected = selectedId === banner.id;
-    return `
-      <button type="button"
-        class="ax-banner-choice ${banner.className} ${isSelected ? "is-selected" : ""} ${unlocked ? "" : "is-locked"}"
-        data-profile-banner="${banner.id}" ${unlocked ? "" : "disabled"}
-        aria-label="${escapeHTML(banner.name)}${unlocked ? "" : ` locked until level ${banner.level}`}">
-        <span class="ax-choice-art">${banner.art}</span>
-        <b>${escapeHTML(banner.name)}</b>
-        <small>${unlocked ? (isSelected ? "✓ SELECTED" : banner.tier) : `🔒 LEVEL ${banner.level}`}</small>
-      </button>
-    `;
+    return `<button type="button" class="ax-banner-choice ${banner.className} ${isSelected ? "is-selected" : ""} ${unlocked ? "" : "is-locked"}"
+      data-profile-banner="${banner.id}" ${unlocked ? "" : "disabled"}
+      aria-label="${escapeHTML(banner.name)}${unlocked ? "" : ` locked until level ${banner.level}`}">
+      <span class="ax-choice-art">${banner.art}</span><b>${escapeHTML(banner.name)}</b>
+      <small>${unlocked ? (isSelected ? "✓ IN USE" : banner.tier) : `🔒 LV. ${banner.level}`}</small></button>`;
   }).join("");
-
-  $("#profileLevelValue") && ($("#profileLevelValue").textContent = `LVL ${level}`);
-  $("#profilePlayerName") && ($("#profilePlayerName").textContent =
-    currentUser?.displayName || data.displayName || "ARENAX Player");
-  $("#profilePlayerEmail") && ($("#profilePlayerEmail").textContent = currentUser?.email || "");
 }
 
 async function loadPremiumProfile(user) {
-  if (!user) return;
+  if (!user) {
+    activeProfileData = {};
+    renderProfileBannerCollection(activeProfileData);
+    return;
+  }
   try {
-    const snap = await getDoc(doc(db, "users", user.uid));
+    const [snap, registrations] = await Promise.all([
+      getDoc(doc(db, "users", user.uid)),
+      getDocs(query(collection(db, "registrations"), where("userId", "==", user.uid)))
+    ]);
     activeProfileData = snap.exists() ? snap.data() : {};
-    if (!activeProfileData.selectedProfileBanner) {
-      activeProfileData.selectedProfileBanner = "rookie";
-    }
+    activeProfileData.totalMatches = Math.max(Number(activeProfileData.totalMatches || 0), registrations.size);
+    if (!activeProfileData.selectedProfileBanner) activeProfileData.selectedProfileBanner = "rookie";
     renderProfileBannerCollection(activeProfileData);
   } catch (error) {
     console.error("Premium profile load error:", error);
+    renderProfileBannerCollection(activeProfileData);
     showMessage("প্রোফাইল লোড করা যায়নি।", true);
   }
 }
@@ -447,7 +455,7 @@ onAuthStateChanged(auth, async (user) => {
 
     if ($("#displayNameInput")) {
       $("#displayNameInput").value = user.displayName || "";
-    }
+        }
 
     $("#drawerAdmin")?.classList.toggle("hide", !admin);
     $("#page-admin")?.classList.toggle("admin-enabled", admin);
@@ -460,6 +468,8 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     isAdmin = false;
     setAuthFormsVisible(true);
+    activeProfileData = {};
+    renderProfileBannerCollection(activeProfileData);
 
     if ($("#session")) {
       $("#session").textContent = "Login করা হয়নি";
@@ -478,7 +488,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     if ($("#myMatchesList")) {
-        $("#myMatchesList").textContent = "ম্যাচ দেখতে Login করো।";
+      $("#myMatchesList").textContent = "ম্যাচ দেখতে Login করো।";
     }
 
     await loadTournaments();
@@ -633,7 +643,7 @@ async function loadTournaments() {
 window.openJoinForm = (tournamentId) => {
   if (!currentUser) {
     showMessage("Tournament Join করতে আগে Login করো।", true);
-    page("account");
+    page("profile");
     return;
   }
 
@@ -730,7 +740,7 @@ $("#registrationForm")?.addEventListener("submit", async (event) => {
 
   if (!currentUser) {
     showMessage("আগে Login করো।", true);
-    page("account");
+    page("profile");
     return;
   }
 
@@ -798,7 +808,7 @@ $("#registrationForm")?.addEventListener("submit", async (event) => {
 
       if (existingSnap.exists()) {
         throw new Error("এই Tournament-এ তুমি আগে Join করেছ।");
-      }
+          }
 
       const tournament = tournamentSnap.data();
 
@@ -958,7 +968,7 @@ async function loadPlayerData() {
                     </p>
                   </div>` : ""}
 
-                                                            <span class="status-tag ${escapeHTML(r.status)}">
+                <span class="status-tag ${escapeHTML(r.status)}">
                   ${escapeHTML(r.status)}
                 </span>
               </div>
@@ -1068,7 +1078,7 @@ $("#paymentForm")?.addEventListener("submit", async (event) => {
 
   if (!currentUser) {
     showMessage("Deposit করতে আগে Login করো।", true);
-    page("account");
+    page("profile");
     return;
   }
 
@@ -1115,7 +1125,7 @@ $("#withdrawForm")?.addEventListener("submit", async (event) => {
 
   if (!currentUser) {
     showMessage("Withdraw করতে আগে Login করো।", true);
-    page("account");
+    page("profile");
     return;
   }
 
@@ -1160,7 +1170,7 @@ $("#withdrawForm")?.addEventListener("submit", async (event) => {
 
     if (amount > available) {
       throw new Error(
-        `পর্যাপ্ত ব্যালেন্স নেই। Available: ৳${money(Math.max(0, available))}`
+              `পর্যাপ্ত ব্যালেন্স নেই। Available: ৳${money(Math.max(0, available))}`
       );
     }
 
@@ -1439,7 +1449,7 @@ window.reviewPayment = async (paymentId, status) => {
       });
     });
 
-                                    showMessage(
+    showMessage(
       status === "approved"
         ? "Payment Approve হয়েছে।"
         : "Payment Reject হয়েছে।"
@@ -1916,7 +1926,3 @@ async function loadLeaderboard() {
 // INITIAL PUBLIC DATA
 loadTournaments();
 loadLeaderboard();
-
-
-
-                         
