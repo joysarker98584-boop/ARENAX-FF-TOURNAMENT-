@@ -478,7 +478,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     if ($("#myMatchesList")) {
-      $("#myMatchesList").textContent = "ম্যাচ দেখতে Login করো।";
+        $("#myMatchesList").textContent = "ম্যাচ দেখতে Login করো।";
     }
 
     await loadTournaments();
@@ -958,7 +958,7 @@ async function loadPlayerData() {
                     </p>
                   </div>` : ""}
 
-                <span class="status-tag ${escapeHTML(r.status)}">
+                                                            <span class="status-tag ${escapeHTML(r.status)}">
                   ${escapeHTML(r.status)}
                 </span>
               </div>
@@ -1439,7 +1439,7 @@ window.reviewPayment = async (paymentId, status) => {
       });
     });
 
-    showMessage(
+                                    showMessage(
       status === "approved"
         ? "Payment Approve হয়েছে।"
         : "Payment Reject হয়েছে।"
@@ -1919,4 +1919,4 @@ loadLeaderboard();
 
 
 
-    
+                         
